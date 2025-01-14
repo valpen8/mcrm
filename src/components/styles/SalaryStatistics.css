@@ -1,0 +1,157 @@
+/* Container Styling */
+.salary-statistics-container {
+    width: 90%;
+    max-width: 1400px; /* Maximal bredd för stora skärmar */
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Total Salary Container */
+  .total-salary-container {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 20px;
+  }
+  
+  .total-salary {
+    font-weight: bold;
+    color: #28a745;
+    margin-left: 10px;
+    font-size: 20px;
+  }
+  
+  /* Filter Container Styling */
+  .filter-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap; /* Gör det responsivt */
+    margin-bottom: 20px;
+  }
+  
+  .filter-container label {
+    margin-right: 10px;
+    font-weight: bold;
+  }
+  
+  .filter-container select {
+    padding: 8px;
+    margin-right: 10px;
+    border-radius: 5px;
+    width: 200px; /* Förbättrad visning på större skärmar */
+  }
+  
+  .fetch-button, .export-button {
+    padding: 10px 16px;
+    background-color: #17a2b8;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-bottom: 10px; /* Lägger till marginal för att skapa utrymme */
+  }
+  
+  .fetch-button:hover, .export-button:hover {
+    background-color: #138496;
+  }
+  
+  /* Table Container for Horizontal Scroll */
+  .salary-table-container {
+    width: 100%;
+    overflow-x: auto; /* För att kunna skrolla horisontellt */
+  }
+  
+  /* Table Styling */
+  .salary-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+  
+  .salary-table th, .salary-table td {
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    text-align: center;
+    font-size: 14px;
+  }
+  
+  .salary-table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+  }
+  
+  /* Responsiv design för små skärmar */
+  @media (max-width: 768px) {
+    .filter-container {
+      flex-direction: column;
+      align-items: flex-start; /* Anpassa till små skärmar */
+    }
+  
+    .filter-container label, .filter-container select, .fetch-button, .export-button {
+      width: 100%; /* Fullbredd för små skärmar */
+      margin: 5px 0; /* Utrymme mellan element */
+    }
+  
+    /* Total salary container responsivitet */
+    .total-salary-container {
+      justify-content: center;
+    }
+  
+    /* Tabellresponsivitet för små skärmar */
+    .salary-table, .salary-table thead, .salary-table tbody, .salary-table th, .salary-table td, .salary-table tr {
+      display: block; /* Gör varje tabellrad blockvis för responsivitet */
+    }
+  
+    .salary-table thead {
+      display: none; /* Dölj tabellhuvudet på små skärmar */
+    }
+  
+    .salary-table tr {
+      margin-bottom: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+  
+    .salary-table td {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px;
+      border: none;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+      font-size: 14px;
+    }
+  
+    .salary-table td:last-child {
+      border-bottom: none; /* Ta bort border från sista elementet */
+    }
+  
+    .salary-table td:before {
+      content: attr(data-label);
+      font-weight: bold;
+      flex: 1;
+      text-align: left;
+      font-size: 14px;
+      color: #333;
+      padding-right: 10px;
+    }
+  
+    .salary-table td {
+      text-align: right;
+    }
+  }
+  
+  /* Extra responsivitet för stora skärmar */
+  @media (min-width: 1400px) {
+    .salary-statistics-container {
+      max-width: 1600px; /* Öka maxbredd för stora skärmar */
+    }
+  
+    .total-salary {
+      font-size: 24px; /* Öka textstorleken på stora skärmar */
+    }
+  }

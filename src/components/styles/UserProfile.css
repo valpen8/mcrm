@@ -1,0 +1,70 @@
+.user-profile-container {
+    max-width: 800px;
+    margin: 50px auto;
+    padding: 20px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .user-profile-container h1 {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  
+  .user-profile-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Två kolumner */
+    gap: 20px;
+  }
+  
+  .form-group {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .form-group label {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+  
+  .form-group input {
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+  
+  .user-profile-form button {
+    grid-column: span 2; /* Knappen tar upp båda kolumnerna */
+    padding: 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 20px;
+  }
+  
+  .user-profile-form button:hover {
+    background-color: #0056b3;
+  }
+  
+  .message {
+    text-align: center;
+    color: green;
+    font-weight: bold;
+    margin-top: 20px;
+  }
+  
+  /* Responsiv layout för mindre skärmar */
+  @media (max-width: 768px) {
+    .user-profile-form {
+      grid-template-columns: 1fr; /* Endast en kolumn på små skärmar */
+    }
+  
+    .user-profile-form button {
+      grid-column: span 1; /* Knappen tar upp en kolumn på små skärmar */
+    }
+  }

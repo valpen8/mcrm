@@ -1,0 +1,93 @@
+.user-sales-specification-container {
+    max-width: 600px;
+    margin: 50px auto;
+    padding: 20px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    font-family: 'Arial', sans-serif;
+    color: #333;
+}
+
+.user-sales-specification-container h1 {
+    font-size: 2rem;
+    margin-bottom: 20px;
+    text-align: left;
+    color: #2b4e74;
+}
+
+.user-sales-specification-container h2 {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+    text-align: left;
+}
+
+.user-sales-specification-container h3 {
+    font-size: 1.25rem;
+    margin-bottom: 10px;
+    text-align: left;
+}
+
+.user-sales-specification-container p {
+    margin: 10px 0;
+    font-weight: normal;
+    line-height: 1.6;
+    font-size: 1rem;
+}
+
+.user-sales-specification-container p strong {
+    font-weight: bold;
+}
+
+/* Ger extra utrymme mellan Säljid och dropdown-listan */
+.user-sales-specification-container .sales-id {
+    margin-bottom: 20px; /* Öka avståndet under Säljid */
+}
+
+.user-sales-specification-container .specification-details {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #ddd;
+}
+
+/* Förbättrad dropdown-lista */
+.user-sales-specification-container select {
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 100%;
+    background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.user-sales-specification-container select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+}
+
+/* Lägger till bättre spacing för små skärmar */
+@media (max-width: 600px) {
+    .user-sales-specification-container {
+        padding: 15px;
+        margin: 20px auto;
+    }
+
+    .user-sales-specification-container h1,
+    .user-sales-specification-container h2,
+    .user-sales-specification-container h3 {
+        text-align: center;
+        margin-bottom: 15px;
+    }
+
+    .user-sales-specification-container p {
+        font-size: 0.95rem;
+        margin: 8px 0;
+    }
+
+    .user-sales-specification-container select {
+        padding: 8px;
+    }
+}

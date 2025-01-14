@@ -1,0 +1,284 @@
+.manage-users-container {
+  width: 90%;
+  max-width: 1400px; /* Ökad maxbredd för stora skärmar */
+  margin: 20px auto;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Filtersektion */
+.filter-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.filter-container label {
+  margin: 5px;
+}
+
+.filter-container select,
+.filter-container input,
+.filter-button,
+.export-button {
+  padding: 10px;
+  margin: 5px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+.filter-button,
+.export-button {
+  background-color: #17a2b8;
+  color: white;
+  cursor: pointer;
+}
+
+.filter-button:hover,
+.export-button:hover {
+  background-color: #138496;
+}
+
+/* Dropdown för filtrering av aktiva och avslutade användare */
+.status-filter-container {
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.status-filter-container select {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+/* Datumfältens styling */
+.date-filter-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 10px 0;
+}
+
+.date-filter-container input {
+  padding: 10px;
+  margin: 5px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+}
+
+/* Tabellens styling */
+.user-table-container {
+  width: 100%;
+  overflow-x: auto; /* Gör tabellen scrollbar på mindre skärmar */
+}
+
+.user-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  table-layout: fixed; /* Fixera layouten för att passa in kolumner */
+}
+
+.user-table th, .user-table td {
+  padding: 12px;
+  border: 1px solid #ddd;
+  text-align: center;
+  font-size: 14px;
+}
+
+.user-table th {
+  background-color: #f2f2f2;
+  font-weight: bold;
+}
+
+/* Knappstyling */
+.button-profile {
+  background-color: #17a2b8;
+  color: white;
+  padding: 8px 12px;
+  margin: 5px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.button-danger {
+  background-color: #dc3545;
+  color: white;
+  padding: 8px 12px;
+  margin: 5px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.button-profile:hover,
+.button-danger:hover {
+  opacity: 0.8;
+}
+
+/* Responsiv styling för tabell */
+@media (max-width: 1024px) {
+  .user-table th, .user-table td {
+    font-size: 12px; /* Minska fontstorleken på mindre skärmar */
+    padding: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .user-table, .user-table thead, .user-table tbody, .user-table th, .user-table td, .user-table tr {
+    display: block;
+  }
+
+  .user-table thead tr {
+    display: none; /* Dölj tabellhuvudet på små skärmar */
+  }
+
+  .user-table tr {
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background: #fff;
+  }
+
+  .user-table td {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    border: none;
+    border-bottom: 1px solid #ddd;
+    text-align: left;
+    font-size: 14px;
+  }
+
+  .user-table td:last-child {
+    border-bottom: none;
+  }
+
+  .user-table td:before {
+    content: attr(data-label);
+    font-weight: bold;
+    flex: 0 0 45%;
+    text-align: left;
+    font-size: 12px;
+    color: #333;
+  }
+
+  .user-table td {
+    text-align: right;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+}
+
+/* Responsiv styling för filter och knappar */
+@media (max-width: 768px) {
+  .filter-container {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .filter-container label,
+  .filter-container select,
+  .filter-container input,
+  .filter-button,
+  .export-button {
+    width: 100%;
+    margin: 10px 0;
+  }
+
+  .date-filter-container {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .date-filter-container input {
+    width: 100%;
+    margin: 5px 0;
+  }
+
+  .filter-button,
+  .export-button {
+    width: 100%;
+  }
+
+  .status-filter-container {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .status-filter-container select {
+    width: 100%;
+    margin: 10px 0;
+  }
+}
+
+/* Modal overlay för att mörka bakgrunden */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5); /* Halvgenomskinlig bakgrund */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000; /* Hög z-index för att visa över allt annat */
+}
+
+/* Själva modal-rutan */
+.modal-content {
+  background: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  width: 400px;
+  text-align: center;
+}
+
+/* Knappstilar för modalen */
+.button-inactivate,
+.button-danger,
+.button-cancel,
+.button-activate {
+  margin: 10px;
+  padding: 10px 15px;
+  cursor: pointer;
+}
+
+.button-inactivate {
+  background-color: #17a2b8;
+  color: #fff;
+  border: none;
+}
+
+.button-danger {
+  background-color: #dc3545;
+  color: #fff;
+  border: none;
+}
+
+.button-cancel {
+  background-color: #6c757d;
+  color: #fff;
+  border: none;
+}
+
+/* Ny stil för "Aktivera"-knappen */
+.button-activate {
+  background-color: #28a745; /* Grön färg för aktivering */
+  color: #fff;
+  border: none;
+}

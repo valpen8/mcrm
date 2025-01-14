@@ -1,0 +1,135 @@
+/* SalesManagerStatistics.css */
+
+/* Container-styling */
+.statistics-container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Rubrik */
+  .statistics-container h1 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+  }
+  
+  /* Filtersektion */
+  .filter-section {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    gap: 15px;
+  }
+  
+  /* Filteritem-styling */
+  .filter-item {
+    flex: 1;
+    min-width: 200px;
+  }
+  
+  .filter-item label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+  }
+  
+  .filter-item input,
+  .filter-item select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+  }
+  
+  /* Knappar */
+  .filter-buttons {
+    display: flex;
+    gap: 10px;
+  }
+  
+  .filter-button,
+  .reset-button {
+    padding: 10px 20px;
+    background-color: #17a2b8;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+  
+  .reset-button {
+    background-color: #dc3545;
+  }
+  
+  .filter-button:hover {
+    background-color: #138496;
+  }
+  
+  .reset-button:hover {
+    background-color: #c82333;
+  }
+  
+  /* Totalsumma */
+  .total-sales {
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 18px;
+    font-weight: bold;
+  }
+  
+  /* Tabell-container */
+  .table-container {
+    overflow-x: auto; /* Lägg till horisontell scroll på små skärmar */
+  }
+  
+  /* Tabellens styling */
+  .statistics-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .statistics-table th,
+  .statistics-table td {
+    padding: 12px;
+    border: 1px solid #ddd;
+    text-align: center;
+    font-size: 14px;
+  }
+  
+  .statistics-table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+  }
+  
+  .statistics-table tbody tr:hover {
+    background-color: #f1f1f1;
+  }
+  
+  /* Responsiv styling */
+  @media (max-width: 768px) {
+    .statistics-container {
+      padding: 10px;
+    }
+  
+    .filter-section {
+      flex-direction: column;
+    }
+  
+    .filter-item {
+      min-width: 100%;
+    }
+  
+    .filter-buttons {
+      justify-content: center;
+    }
+  }

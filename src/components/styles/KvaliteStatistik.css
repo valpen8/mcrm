@@ -1,0 +1,183 @@
+.statistics-container {
+    width: 90%;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Filter layout */
+.filter-table {
+    width: 100%;
+    border-spacing: 15px;
+    margin-bottom: 20px;
+}
+
+.filter-table label {
+    font-weight: bold;
+}
+
+.filter-table select,
+.filter-table input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+/* Buttons */
+.filter-button,
+.reset-button {
+    padding: 10px 20px;
+    background-color: #17a2b8;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 10px;
+}
+
+.reset-button {
+    background-color: #6c757d;
+}
+
+.filter-button:hover,
+.reset-button:hover {
+    opacity: 0.8;
+}
+
+/* Responsive total sales layout */
+.total-sales {
+    display: flex;
+    justify-content: space-between;
+    margin: 20px 0;
+    font-size: 16px;
+    font-weight: bold;
+    color: #17a2b8;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.total-sales div {
+    flex: 1 1 20%; /* Anpassar bredden för varje totalvärde */
+    text-align: center;
+}
+
+/* Table layout */
+.table-container {
+    overflow-x: auto;
+}
+
+.statistics-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.statistics-table th,
+.statistics-table td {
+    border: 1px solid #ddd;
+    text-align: center;
+    padding: 12px;
+}
+
+.statistics-table th {
+    background-color: #f9f9f9;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 1024px) {
+    .statistics-container {
+        width: 100%;
+        padding: 10px;
+    }
+
+    .filter-table {
+        border-spacing: 10px;
+    }
+
+    .filter-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .filter-table label {
+        display: block;
+        margin-bottom: 5px;
+    }
+
+    .filter-table select,
+    .filter-table input {
+        width: 100%;
+    }
+
+    .total-sales {
+        flex-direction: column; /* Staplar totalvärden på mindre skärmar */
+        align-items: center;
+    }
+
+    .total-sales div {
+        flex: 1 1 100%;
+    }
+}
+
+/* Additional responsiveness for very small screens */
+@media (max-width: 768px) {
+    .filter-table {
+        margin-bottom: 20px;
+        border-spacing: 10px;
+    }
+
+    .filter-table tr {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+
+    .filter-table td {
+        flex: 1 1 calc(50% - 20px); /* Flex layout för två kolumner */
+        margin: 5px;
+    }
+
+    .filter-table td label {
+        font-size: 14px;
+    }
+
+    .filter-table select,
+    .filter-table input {
+        padding: 8px;
+        font-size: 14px;
+    }
+
+    .statistics-table th,
+    .statistics-table td {
+        font-size: 12px;
+        padding: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .filter-table tr {
+        flex-direction: column; /* Kolumnlayout för små skärmar */
+    }
+
+    .filter-table td {
+        flex: 1 1 100%; /* Gör cellerna 100% breda */
+        margin: 5px 0;
+    }
+
+    .filter-table label {
+        font-size: 14px;
+    }
+
+    .filter-table select,
+    .filter-table input {
+        padding: 8px;
+        font-size: 14px;
+        width: 100%;
+    }
+
+    .statistics-table th,
+    .statistics-table td {
+        padding: 8px;
+        font-size: 10px;
+    }
+}

@@ -1,0 +1,140 @@
+/* Layout Container */
+.layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Header */
+.header {
+  background-color: #1e272e;
+  color: white;
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* Centrerar innehållet */
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.header .menu-icon {
+  position: absolute;
+  left: 15px;
+  font-size: 24px;
+  cursor: pointer;
+  color: white;
+  transition: transform 0.3s ease;
+}
+
+.header .menu-icon:hover {
+  transform: scale(1.2);
+}
+
+.header .title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #f5f6fa;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Sidebar */
+.sidebar {
+  background-color: #2d3436;
+  color: white;
+  width: 250px;
+  height: 100%;
+  position: fixed;
+  top: 0;
+  left: -250px;
+  overflow-x: hidden;
+  transition: 0.3s ease;
+  z-index: 999;
+  padding-top: 80px; /* Justerat för bättre spacing */
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar.open {
+  left: 0;
+}
+
+.sidebar nav ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.sidebar nav ul li {
+  padding: 12px 20px;
+  text-align: left;
+}
+
+.sidebar nav ul li a {
+  color: white;
+  text-decoration: none;
+  display: block;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background-color 0.3s, transform 0.3s;
+}
+
+.sidebar nav ul li a:hover {
+  background-color: #636e72;
+  transform: scale(1.05);
+}
+
+.sidebar nav ul li button.logout-button {
+  background-color: #d63031;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 16px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font-size: 1rem;
+  transition: background-color 0.3s;
+}
+
+.sidebar nav ul li button.logout-button:hover {
+  background-color: #c0392b;
+}
+
+/* Content */
+.content {
+  margin-top: 60px;
+  margin-left: 0;
+  padding: 20px;
+  flex-grow: 1;
+  transition: margin-left 0.3s ease, background-color 0.3s;
+  background-color: #f5f6fa;
+  overflow: auto;
+}
+
+.sidebar.open ~ .content {
+  margin-left: 250px;
+}
+
+/* Responsiv Sidebar */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 200px;
+  }
+
+  .sidebar.open ~ .content {
+    margin-left: 200px;
+  }
+
+  .header .menu-icon {
+    font-size: 20px;
+  }
+
+  .header .title {
+    font-size: 1.2rem;
+  }
+}
