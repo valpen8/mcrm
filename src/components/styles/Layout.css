@@ -8,6 +8,10 @@
 }
 
 /* Header */
+img {
+  width:50px;
+}
+
 .header {
   background-color: #1e272e;
   color: white;

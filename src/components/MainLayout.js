@@ -4,6 +4,7 @@ import { signOut } from 'firebase/auth';
 import { useAuth } from '../auth';
 import { auth, db } from '../firebaseConfig';
 import { doc, getDoc } from 'firebase/firestore';
+import logga from '../img/logga.png';  // Anpassa sökvägen beroende på var du ligger
 import './styles/Layout.css';
 
 const MainLayout = () => {
@@ -96,7 +97,8 @@ const MainLayout = () => {
         <span className="menu-icon" onClick={toggleMenu}>
           &#9776;
         </span>
-        <h1 className="title">MidSale</h1>
+        
+        <img src={logga} alt="Logga" />
       </header>
 
       <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>

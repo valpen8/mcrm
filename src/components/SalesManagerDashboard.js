@@ -203,14 +203,14 @@ const SalesManagerDashboard = () => {
         <>
           <div className="team-sales-stats">
             <h2>Team Statistik</h2>
-            <p><strong>Totalt antal försäljningar för teamet:</strong> {totalTeamSales}</p>
+            <p><strong>Totalt antal avtal för teamet:</strong> {totalTeamSales}</p>
             <p><strong>Genomsnittlig försäljning per medlem:</strong> {averageTeamSales.toFixed(2)}</p>
           </div>
 
           <div className="my-sales-stats">
             <h2>Mina försäljningsstatistik</h2>
-            <p><strong>Totalt antal försäljningar:</strong> {totalSales}</p>
-            <p><strong>Genomsnittlig försäljning per rapport:</strong> {averageSales.toFixed(2)}</p>
+            <p><strong>Totalt antal avtal:</strong> {totalSales}</p>
+            <p><strong>Genomsnittlig avtal per rapport:</strong> {averageSales.toFixed(2)}</p>
           </div>
 
           <div className="top-users">
@@ -218,7 +218,7 @@ const SalesManagerDashboard = () => {
             <ul>
               {topUsers.map((user, index) => (
                 <li key={index}>
-                  {index + 1}. {user.userName}: {user.totalSales} försäljningar
+                  {index + 1}. {user.userName}: {user.totalSales} avtal
                 </li>
               ))}
             </ul>
@@ -229,7 +229,7 @@ const SalesManagerDashboard = () => {
             <ul>
               {topTeams.map((team, index) => (
                 <li key={index}>
-                  {index + 1}. {team.managerName}: {team.totalSales} försäljningar
+                  {index + 1}. {team.managerName}: {team.totalSales} avtal
                 </li>
               ))}
             </ul>
