@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { useAuth } from '../auth';
-import './styles/UserDashboard.css';
+import './styles/UserDashboard.css'; // Förutsätter att du har lagt in den nya CSS-koden i denna fil
 
 const UserDashboard = () => {
   const [userReports, setUserReports] = useState([]);
@@ -10,7 +10,7 @@ const UserDashboard = () => {
   const [averageSales, setAverageSales] = useState(0);
   const [topUsers, setTopUsers] = useState([]);
   const [topTeams, setTopTeams] = useState([]);
-  const [loading, setLoading] = useState(true); // Laddningsstatus
+  const [loading, setLoading] = useState(true);
   const { currentUser } = useAuth();
 
   const getCurrentPeriod = () => {
@@ -35,9 +35,9 @@ const UserDashboard = () => {
   }, [currentUser]);
 
   const fetchData = async () => {
-    setLoading(true); // Sätt till laddningsläge
+    setLoading(true);
     await Promise.all([fetchReports(), fetchTopUsers(), fetchTopTeams()]);
-    setLoading(false); // Avsluta laddningsläge
+    setLoading(false);
   };
 
   const fetchReports = async () => {
@@ -74,12 +74,12 @@ const UserDashboard = () => {
         const userData = userDoc.data();
         const userName = `${userData.firstName} ${userData.lastName}`;
 
-        const reportsQuery = query(
+        const reportsQueryRef = query(
           collection(db, `users/${userId}/reports`),
           where('date', '>=', start.toISOString()),
           where('date', '<=', end.toISOString())
         );
-        const reportsSnapshot = await getDocs(reportsQuery);
+        const reportsSnapshot = await getDocs(reportsQueryRef);
         const totalSales = reportsSnapshot.docs.reduce((sum, report) => {
           const reportData = report.data();
           return sum + parseFloat(reportData.sales || 0);
@@ -139,18 +139,25 @@ const UserDashboard = () => {
   };
 
   return (
-    <div className="user-dashboard-content">
+    <div className="dashboard-content"> 
+      {/* Huvudcontainer enligt din nya CSS-klasser */}
+
       <h1 className="dashboard-title">My Sales Dashboard</h1>
-      <button className="refresh-btn" onClick={fetchData}>Uppdatera Data</button>
+
+      <button className="refresh-btn" onClick={fetchData}>
+        {loading ? 'Laddar...' : 'Uppdatera Data'}
+      </button>
 
       {loading ? (
-        <p>Laddar...</p> // Laddningsindikator
+        <p>Laddar...</p> 
       ) : (
-        <>
-          <div className="my-sales-stats">
+        <div className="dashboard-grid">
+          {/* Grid-layout för dina sektioner */}
+
+          <div className="total-sales-stats">
             <h2>Mina försäljningsstatistik</h2>
-            <p><strong>Totalt antal försäljningar:</strong> {totalSales}</p>
-            <p><strong>Genomsnittlig försäljning per rapport:</strong> {averageSales.toFixed(2)}</p>
+            <p><strong>Totalt antal Avtal:</strong> {totalSales}</p>
+            <p><strong>Genomsnittlig Avtal per rapport:</strong> {averageSales.toFixed(2)}</p>
           </div>
 
           <div className="top-users">
@@ -158,7 +165,7 @@ const UserDashboard = () => {
             <ul>
               {topUsers.map((user, index) => (
                 <li key={index}>
-                  {index + 1}. {user.userName}: {user.totalSales} försäljningar
+                  {index + 1}. {user.userName}: {user.totalSales} Avtal
                 </li>
               ))}
             </ul>
@@ -169,12 +176,12 @@ const UserDashboard = () => {
             <ul>
               {topTeams.map((team, index) => (
                 <li key={index}>
-                  {index + 1}. {team.managerName}: {team.totalSales} försäljningar
+                  {index + 1}. {team.managerName}: {team.totalSales} Avtal
                 </li>
               ))}
             </ul>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

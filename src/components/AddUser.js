@@ -24,8 +24,9 @@ const AddUser = () => {
     { value: 'dashboard', label: 'Dashboard' },
     { value: 'projects', label: 'Mina Projekt' },
     { value: 'reports', label: 'Rapporter' },
-    { value: 'factor-dashboard', label: 'Factor Dashboard' } // Nytt menyval
-  ];
+    { value: 'factor-dashboard', label: 'Factor Dashboard' },
+    { value: 'hellofresh', label: 'HelloFresh' } // Nytt menyval
+];
 
   // Hämta lista med Sales Managers från Firestore
   useEffect(() => {

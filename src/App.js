@@ -24,6 +24,7 @@ import UserStatistics from './components/UserStatistics';
 import UppdragsgivareDashboard from './components/UppdragsgivareDashboard'; // Importera Uppdragsgivare Dashboard
 import ManageOrganizations from './components/ManageOrganizations';
 import FactorDashboard from './components/FactorDashboard';  // Lägg till importen
+import Hellofresh from './components/Hellofresh';
 import ForgotPassword from './components/ForgotPassword'; // Import för "Glömt lösenord"-komponenten
 import { AuthProvider } from './auth';
 
@@ -58,6 +59,15 @@ function App() {
                  <FactorDashboard />
                 </ProtectedRoute>
                }
+            />
+
+            <Route 
+              path="/uppdragsgivare/hellofresh" 
+              element={
+                <ProtectedRoute role={["user", "sales-manager", "admin", "uppdragsgivare"]}>
+                 <Hellofresh />
+               </ProtectedRoute>
+               } 
             /> 
 
             {/* User Dashboard */}

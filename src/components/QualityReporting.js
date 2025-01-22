@@ -27,13 +27,15 @@ const QualityReporting = () => {
   const [editReportData, setEditReportData] = useState(null); // För redigering
   const [editMemberData, setEditMemberData] = useState({}); // För redigering
 
-  // NY STATE: För att hålla organisationer från Firestore
+  // NY STATE: För att hålla alla organisationer från Firestore
   const [organizations, setOrganizations] = useState([]);
+
+  // NY STATE: För att lagra salesData/status från finalReports
+  const [finalReportSalesData, setFinalReportSalesData] = useState(null);
 
   useEffect(() => {
     fetchSalesManagers();
     fetchRecentReports();
-    // NYTT: Hämta alla organisationer när komponenten laddas
     fetchOrganizations();
   }, []);
 
@@ -60,7 +62,7 @@ const QualityReporting = () => {
     }
   };
 
-  // Hämta teammedlemmar baserat på en vald Sales Manager
+  // Hämta teammedlemmar baserat på vald Sales Manager
   const fetchTeamMembers = async (managerId) => {
     try {
       const q = query(collection(db, 'users'), where('managerUid', '==', managerId));
@@ -108,6 +110,44 @@ const QualityReporting = () => {
       console.error('Fel vid hämtning av senaste rapporter:', error);
     }
   };
+
+  // NY FUNKTION: Hämta salesData/status från "finalReports" baserat på valt datum, manager, organisation
+  const fetchFinalReportForCurrentSelection = async () => {
+    // Bara kör om vi har valt allt
+    if (!reportDate || !selectedManager || !reportOrganisation) {
+      setFinalReportSalesData(null);
+      return;
+    }
+    try {
+      const finalReportsRef = collection(db, 'finalReports');
+      const qFinal = query(
+        finalReportsRef,
+        where('date', '==', reportDate),
+        where('managerUid', '==', selectedManager),
+        where('organisation', '==', reportOrganisation)
+      );
+
+      const querySnapshot = await getDocs(qFinal);
+
+      if (!querySnapshot.empty) {
+        // Tar första dokumentet (antas vara det rätta om du bara har ett)
+        const docData = querySnapshot.docs[0].data();
+        // "salesData" är ett objekt med [userId]: { name, sales, status, ... }
+        setFinalReportSalesData(docData.salesData || {});
+      } else {
+        // Inget dokument hittades
+        setFinalReportSalesData(null);
+      }
+    } catch (error) {
+      console.error('Fel vid hämtning av finalReport:', error);
+      setFinalReportSalesData(null);
+    }
+  };
+
+  // Kör fetchFinalReportForCurrentSelection när man ändrar datum, manager eller organisation
+  useEffect(() => {
+    fetchFinalReportForCurrentSelection();
+  }, [reportDate, selectedManager, reportOrganisation]);
 
   // Lägg till medlem i rapporten
   const handleAddMember = (e) => {
@@ -322,7 +362,6 @@ const QualityReporting = () => {
         />
 
         <label>Organisation:</label>
-        {/* Ersätt text-input med en dropdown */}
         <select
           value={reportOrganisation}
           onChange={(e) => setReportOrganisation(e.target.value)}
@@ -330,8 +369,6 @@ const QualityReporting = () => {
         >
           <option value="">Välj organisation</option>
           {organizations.map((org) => (
-            // Anta att ditt dokument har ett fält "name".
-            // Justera annars om du har t.ex. org.title eller org.orgName
             <option key={org.id} value={org.name}>
               {org.name}
             </option>
@@ -344,7 +381,10 @@ const QualityReporting = () => {
         <>
           <div className="filter-container">
             <label>Välj Sales Manager:</label>
-            <select onChange={(e) => setSelectedManager(e.target.value)} value={selectedManager || ''}>
+            <select
+              onChange={(e) => setSelectedManager(e.target.value)}
+              value={selectedManager || ''}
+            >
               <option value="">Välj en Sales Manager</option>
               {salesManagers.map(manager => (
                 <option key={manager.id} value={manager.id}>
@@ -380,6 +420,7 @@ const QualityReporting = () => {
                 <th>Utanför målgrupp</th>
                 <th>Pending</th>
                 <th>Total</th>
+                <th>Status</th> {/* <-- Ny kolumn för status */}
                 <th>Åtgärder</th>
               </tr>
             </thead>
@@ -417,6 +458,12 @@ const QualityReporting = () => {
                     />
                   </td>
                   <td>{memberData[member.id]?.total || 0}</td>
+                  {/* Visa status om den finns i finalReportSalesData */}
+                  <td>
+                    {finalReportSalesData
+                      ? (finalReportSalesData[member.id]?.status || 'Ingen status')
+                      : '–'}
+                  </td>
                   <td>
                     <button className="remove-button" onClick={() => handleRemoveMember(member.id)}>Ta bort</button>
                   </td>

@@ -5,7 +5,7 @@
     justify-content: center;
     align-items: center;
     height: 100vh;
-    background-color: #d0d0d0;
+    background: linear-gradient(to right, #6a11cb, #2575fc); /* Snygg gradientbakgrund */
   }
   
   /* Header */

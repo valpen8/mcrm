@@ -79,8 +79,9 @@ const MainLayout = () => {
       { path: '/uppdragsgivare/dashboard', label: 'Dashboard' },
       { path: '/uppdragsgivare/projects', label: 'Mina Projekt' },
       { path: '/uppdragsgivare/reports', label: 'Rapporter' },
-      { path: '/uppdragsgivare/factor-dashboard', label: 'Factor Dashboard' } // Ny menykomponent
-    ],
+      { path: '/uppdragsgivare/factor-dashboard', label: 'Factor Dashboard' },
+      { path: '/uppdragsgivare/hellofresh', label: 'HelloFresh' } // Ny menykomponent
+  ],
   };
 
   // Filtrera menyn för uppdragsgivare
