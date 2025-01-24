@@ -87,11 +87,17 @@
   table-layout: fixed; /* Fixera layouten för att passa in kolumner */
 }
 
-.user-table th, .user-table td {
+.user-table th,
+.user-table td {
   padding: 12px;
   border: 1px solid #ddd;
   text-align: center;
   font-size: 14px;
+  
+  /* Radbrytning av för långa texter (t.ex. långa mejladresser): */
+  word-wrap: break-word;    /* äldre syntax */
+  overflow-wrap: break-word;/* modern syntax */
+  white-space: normal;      /* tillåt radbrytning */
 }
 
 .user-table th {
@@ -127,14 +133,20 @@
 
 /* Responsiv styling för tabell */
 @media (max-width: 1024px) {
-  .user-table th, .user-table td {
+  .user-table th,
+  .user-table td {
     font-size: 12px; /* Minska fontstorleken på mindre skärmar */
     padding: 10px;
   }
 }
 
 @media (max-width: 768px) {
-  .user-table, .user-table thead, .user-table tbody, .user-table th, .user-table td, .user-table tr {
+  .user-table,
+  .user-table thead,
+  .user-table tbody,
+  .user-table th,
+  .user-table td,
+  .user-table tr {
     display: block;
   }
 
@@ -281,4 +293,26 @@
   background-color: #28a745; /* Grön färg för aktivering */
   color: #fff;
   border: none;
+}
+
+/* === Dropdown för Team-kolumnen === */
+.team-dropdown {
+  width: 100%;         /* Fyll hela kolumnens bredd */
+  max-width: 200px;    /* Begränsa bredden på större skärmar, kan justeras efter behov */
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background-color: #fff;
+  box-sizing: border-box; /* Viktigt för korrekt responsivitet */
+  -webkit-appearance: none; /* Tar bort pilstil (Safari/iOS) */
+  -moz-appearance: none;    /* Tar bort pilstil (Firefox) */
+  appearance: none;         /* Tar bort pilstil (Chrome etc) */
+}
+
+/* På riktigt små skärmar vill vi kanske låta dropdown fylla kolumnen helt */
+@media (max-width: 768px) {
+  .team-dropdown {
+    max-width: 100%;
+  }
 }

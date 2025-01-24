@@ -203,15 +203,23 @@ const QualityReporting = () => {
       const assignedTo = selectedMembers.map(member => member.id);
 
       // Bygg data för varje medlem med namn och Sales ID
+      // ** Nytt: Inkluderar "status" från finalReports om det finns **
       const memberDataWithDetails = Object.fromEntries(
-        selectedMembers.map(member => [
-          member.id,
-          {
-            ...memberData[member.id],
-            name: `${member.firstName} ${member.lastName}`,
-            salesId: member.salesId || 'N/A',
-          },
-        ])
+        selectedMembers.map(member => {
+          const statusFromFinal = finalReportSalesData && finalReportSalesData[member.id]?.status
+            ? finalReportSalesData[member.id].status
+            : 'Ingen status'; // default om inget finns
+
+          return [
+            member.id,
+            {
+              ...memberData[member.id],
+              name: `${member.firstName} ${member.lastName}`,
+              salesId: member.salesId || 'N/A',
+              status: statusFromFinal // ** Ny rad
+            }
+          ];
+        })
       );
 
       const reportData = {
@@ -234,7 +242,7 @@ const QualityReporting = () => {
         const individualReportData = {
           date: reportDate,
           organisation: reportOrganisation,
-          ...data, // Inkludera regSales, invalidAmount, outOfTarget, pending, total
+          ...data, // Inkludera regSales, invalidAmount, outOfTarget, pending, total, status
           createdAt: new Date().toISOString(),
           reportId: docRef.id, // Lagra huvudrapportens ID
         };
@@ -420,7 +428,7 @@ const QualityReporting = () => {
                 <th>Utanför målgrupp</th>
                 <th>Pending</th>
                 <th>Total</th>
-                <th>Status</th> {/* <-- Ny kolumn för status */}
+                <th>Status</th> {/* Ny kolumn för att visa finalReports-status */}
                 <th>Åtgärder</th>
               </tr>
             </thead>
@@ -458,14 +466,15 @@ const QualityReporting = () => {
                     />
                   </td>
                   <td>{memberData[member.id]?.total || 0}</td>
-                  {/* Visa status om den finns i finalReportSalesData */}
                   <td>
                     {finalReportSalesData
                       ? (finalReportSalesData[member.id]?.status || 'Ingen status')
                       : '–'}
                   </td>
                   <td>
-                    <button className="remove-button" onClick={() => handleRemoveMember(member.id)}>Ta bort</button>
+                    <button className="remove-button" onClick={() => handleRemoveMember(member.id)}>
+                      Ta bort
+                    </button>
                   </td>
                 </tr>
               ))}
