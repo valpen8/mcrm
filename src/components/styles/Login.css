@@ -1,72 +1,124 @@
 /* Login.css */
 
 .login-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    background: linear-gradient(to right, #6a11cb, #2575fc); /* Snygg gradientbakgrund */
-  }
-  
-  /* Header */
-.login-box img {
-  width:250px;
-  margin-bottom:30px;
-  margin-top:30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  height: 100dvh; /* Dynamic viewport height */
+  background: linear-gradient(to right, #6a11cb, #2575fc); /* Snygg gradientbakgrund */
+  padding: 20px; /* För att säkerställa korrekt marginal på mindre skärmar */
 }
 
-  .login-box {
-    background-color: #ffffff;
-    padding: 40px;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    max-width: 400px;
-    width: 100%;
-    text-align: center;
-  }
-  
-  .login-box h1 {
-    font-size: 24px;
-    margin-bottom: 20px;
-  }
-  
-  .login-box label {
-    display: block;
-    font-weight: bold;
-    text-align: left;
-    margin-bottom: 8px;
-  }
-  
-  .login-box input {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 20px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-  }
-  
-  .login-box button {
-    width: 100%;
-    padding: 10px;
-    background-color: #2c3e50;
-    color: #ffffff;
-    border: none;
-    border-radius: 4px;
-    font-size: 16px;
-    cursor: pointer;
-  }
-  
-  .login-box button:hover {
-    background-color: #1a252f;
-  }
-  
-  .forgot-password {
-    display: block;
-    margin-top: 20px;
-    color: #888;
-    text-decoration: none;
-  }
-  
-  .forgot-password:hover {
-    text-decoration: underline;
-  }
+/* Header */
+.login-box img {
+width: 250px;
+margin-bottom: 30px;
+margin-top: 30px;
+}
+
+.login-box {
+  background-color: #ffffff;
+  padding: 40px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+}
+
+.login-box h1 {
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+
+.login-box label {
+  display: block;
+  font-weight: bold;
+  text-align: left;
+  margin-bottom: 8px;
+}
+
+.login-box input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 20px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.login-box button {
+  width: 100%;
+  padding: 10px;
+  background-color: #2c3e50;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.login-box button:hover {
+  background-color: #1a252f;
+}
+
+.forgot-password {
+  display: block;
+  margin-top: 20px;
+  color: #888;
+  text-decoration: none;
+}
+
+.forgot-password:hover {
+  text-decoration: underline;
+}
+
+/* Responsiv design */
+@media (max-width: 768px) {
+.login-container {
+  height: auto; /* Gör det responsivt för mindre skärmar */
+  padding: 20px; /* Anpassa marginalerna för mindre skärmar */
+}
+
+.login-box {
+  padding: 20px; /* Minska inre marginaler */
+  max-width: 90%; /* Anpassa bredden till mindre skärmar */
+  box-shadow: none; /* Ta bort skuggan för enkelhet */
+}
+
+.login-box img {
+  width: 150px; /* Minska storleken på logotypen */
+  margin-bottom: 20px;
+}
+
+.login-box input {
+  padding: 8px; /* Mindre marginaler för inmatningsfält */
+  font-size: 14px;
+}
+
+.login-box button {
+  padding: 10px;
+  font-size: 14px; /* Mindre knapptext för mindre skärmar */
+}
+
+.forgot-password {
+  font-size: 14px;
+}
+}
+
+@media (max-width: 480px) {
+.login-box {
+  padding: 15px;
+  max-width: 95%; /* Ytterligare justering för mycket små skärmar */
+}
+
+.login-box input {
+  padding: 6px; /* Ytterligare minskning av marginaler för små skärmar */
+  font-size: 12px;
+}
+
+.login-box button {
+  padding: 8px;
+  font-size: 12px;
+}
+}
