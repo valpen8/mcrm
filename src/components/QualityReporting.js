@@ -12,7 +12,7 @@ import {
   setDoc
 } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
-import './styles/FinalReport.css'; // Använder samma stil som FinalReport
+import './styles/QualityReporting.css'; // Använder samma stil som FinalReport
 
 const QualityReporting = () => {
   const [salesManagers, setSalesManagers] = useState([]);
@@ -149,7 +149,7 @@ const QualityReporting = () => {
     fetchFinalReportForCurrentSelection();
   }, [reportDate, selectedManager, reportOrganisation]);
 
-  // Lägg till medlem i rapporten
+  // Lägg till enskild medlem i rapporten
   const handleAddMember = (e) => {
     const memberId = e.target.value;
     if (memberId && !selectedMembers.find(member => member.id === memberId)) {
@@ -162,11 +162,33 @@ const QualityReporting = () => {
     }
   };
 
+  // Lägg till alla medlemmar i rapporten
+  const handleAddAllTeamMembers = () => {
+    const newSelected = [...selectedMembers];
+    const newMemberData = { ...memberData };
+
+    teamMembers.forEach(member => {
+      if (!newSelected.some(sel => sel.id === member.id)) {
+        newSelected.push(member);
+        newMemberData[member.id] = {
+          regSales: 0,
+          invalidAmount: 0,
+          outOfTarget: 0,
+          pending: 0,
+          total: 0,
+        };
+      }
+    });
+
+    setSelectedMembers(newSelected);
+    setMemberData(newMemberData);
+  };
+
   // Ta bort en medlem från rapporten
   const handleRemoveMember = (memberId) => {
     setSelectedMembers(selectedMembers.filter(member => member.id !== memberId));
     setMemberData(prev => {
-      const { [memberId]: removed, ...rest } = prev;
+      const { [memberId]: _, ...rest } = prev;
       return rest;
     });
   };
@@ -202,13 +224,13 @@ const QualityReporting = () => {
     try {
       const assignedTo = selectedMembers.map(member => member.id);
 
-      // Bygg data för varje medlem med namn och Sales ID
-      // ** Nytt: Inkluderar "status" från finalReports om det finns **
+      // Bygg data för varje medlem med namn och Sales ID (inkl. status)
       const memberDataWithDetails = Object.fromEntries(
         selectedMembers.map(member => {
-          const statusFromFinal = finalReportSalesData && finalReportSalesData[member.id]?.status
-            ? finalReportSalesData[member.id].status
-            : 'Ingen status'; // default om inget finns
+          const statusFromFinal =
+            finalReportSalesData && finalReportSalesData[member.id]?.status
+              ? finalReportSalesData[member.id].status
+              : 'Ingen status'; // default om inget finns
 
           return [
             member.id,
@@ -216,7 +238,7 @@ const QualityReporting = () => {
               ...memberData[member.id],
               name: `${member.firstName} ${member.lastName}`,
               salesId: member.salesId || 'N/A',
-              status: statusFromFinal // ** Ny rad
+              status: statusFromFinal
             }
           ];
         })
@@ -227,11 +249,11 @@ const QualityReporting = () => {
         organisation: reportOrganisation,
         members: memberDataWithDetails,
         assignedTo: selectedManager ? [selectedManager, ...assignedTo] : assignedTo,
-        managerUid: selectedManager, // Lägger till managerUid
+        managerUid: selectedManager,
         createdAt: new Date().toISOString(),
       };
 
-      // Spara rapporten i huvudsamlingen
+      // Spara rapporten i huvudsamlingen "qualityReports"
       const docRef = await addDoc(collection(db, 'qualityReports'), reportData);
 
       // Spara varje medlems data i deras egen subkollektion
@@ -242,9 +264,9 @@ const QualityReporting = () => {
         const individualReportData = {
           date: reportDate,
           organisation: reportOrganisation,
-          ...data, // Inkludera regSales, invalidAmount, outOfTarget, pending, total, status
+          ...data,
           createdAt: new Date().toISOString(),
-          reportId: docRef.id, // Lagra huvudrapportens ID
+          reportId: docRef.id,
         };
 
         await addDoc(userQualityReportsCollection, individualReportData);
@@ -271,7 +293,6 @@ const QualityReporting = () => {
 
       // Uppdatera lokala staten
       setRecentReports(recentReports.filter(report => report.id !== reportId));
-
       setMessage('Rapporten har tagits bort framgångsrikt.');
     } catch (error) {
       console.error('Fel vid borttagning av rapport:', error);
@@ -305,6 +326,8 @@ const QualityReporting = () => {
 
   // Spara uppdateringar av en rapport
   const handleSaveEdit = async () => {
+    if (!editReportData) return;
+
     try {
       const updatedReportData = {
         ...editReportData,
@@ -322,9 +345,9 @@ const QualityReporting = () => {
         const userDocRef = doc(db, 'users', memberId);
         const userQualityReportsCollection = collection(userDocRef, 'qualityReports');
 
-        // Hitta och uppdatera rapporten i subkollektionen
-        const q = query(userQualityReportsCollection, where('reportId', '==', editReportData.id));
-        const querySnapshot = await getDocs(q);
+        // Hitta & uppdatera rapporten i subkollektionen
+        const qUser = query(userQualityReportsCollection, where('reportId', '==', editReportData.id));
+        const querySnapshot = await getDocs(qUser);
 
         querySnapshot.forEach(async (docSnapshot) => {
           await setDoc(doc(userQualityReportsCollection, docSnapshot.id), {
@@ -339,9 +362,7 @@ const QualityReporting = () => {
 
       // Uppdatera lokala staten
       setRecentReports(prevReports =>
-        prevReports.map(report =>
-          report.id === editReportData.id ? updatedReportData : report
-        )
+        prevReports.map(r => (r.id === editReportData.id ? updatedReportData : r))
       );
 
       setMessage('Rapporten har uppdaterats framgångsrikt.');
@@ -415,9 +436,14 @@ const QualityReporting = () => {
                     </option>
                   ))}
               </select>
+
+              <button onClick={handleAddAllTeamMembers} className="add-all-button">
+                Lägg till alla medlemmar
+              </button>
             </div>
           )}
 
+          {/* ---------- HUVUDTABELL ---------- */}
           <table className="report-table">
             <thead>
               <tr>
@@ -428,50 +454,52 @@ const QualityReporting = () => {
                 <th>Utanför målgrupp</th>
                 <th>Pending</th>
                 <th>Total</th>
-                <th>Status</th> {/* Ny kolumn för att visa finalReports-status */}
+                <th>Status</th>
                 <th>Åtgärder</th>
               </tr>
             </thead>
             <tbody>
               {selectedMembers.map(member => (
                 <tr key={member.id}>
-                  <td>{member.firstName} {member.lastName}</td>
-                  <td>{member.salesId || 'N/A'}</td>
-                  <td>
+                  <td data-label="Teammedlem">{member.firstName} {member.lastName}</td>
+                  <td data-label="Sales ID">{member.salesId || 'N/A'}</td>
+                  <td data-label="Reg Sälj">
                     <input
                       type="number"
                       value={memberData[member.id]?.regSales || 0}
                       onChange={(e) => handleFieldChange(member.id, 'regSales', e.target.value)}
                     />
                   </td>
-                  <td>
+                  <td data-label="Ogiltigt Belopp">
                     <input
                       type="number"
                       value={memberData[member.id]?.invalidAmount || 0}
                       onChange={(e) => handleFieldChange(member.id, 'invalidAmount', e.target.value)}
                     />
                   </td>
-                  <td>
+                  <td data-label="Utanför målgrupp">
                     <input
                       type="number"
                       value={memberData[member.id]?.outOfTarget || 0}
                       onChange={(e) => handleFieldChange(member.id, 'outOfTarget', e.target.value)}
                     />
                   </td>
-                  <td>
+                  <td data-label="Pending">
                     <input
                       type="number"
                       value={memberData[member.id]?.pending || 0}
                       onChange={(e) => handleFieldChange(member.id, 'pending', e.target.value)}
                     />
                   </td>
-                  <td>{memberData[member.id]?.total || 0}</td>
-                  <td>
+                  <td data-label="Total">
+                    {memberData[member.id]?.total || 0}
+                  </td>
+                  <td data-label="Status">
                     {finalReportSalesData
                       ? (finalReportSalesData[member.id]?.status || 'Ingen status')
                       : '–'}
                   </td>
-                  <td>
+                  <td data-label="Åtgärder">
                     <button className="remove-button" onClick={() => handleRemoveMember(member.id)}>
                       Ta bort
                     </button>
@@ -485,7 +513,7 @@ const QualityReporting = () => {
         </>
       )}
 
-      {/* Formulär för att redigera befintlig rapport */}
+      {/* ---------- REDIGERINGSFORMULÄR ---------- */}
       {editReportData && (
         <div className="edit-report">
           <h2>Ändra Rapport</h2>
@@ -505,37 +533,39 @@ const QualityReporting = () => {
             <tbody>
               {Object.entries(editMemberData).map(([id, data]) => (
                 <tr key={id}>
-                  <td>{data.name || 'N/A'}</td>
-                  <td>{data.salesId || 'N/A'}</td>
-                  <td>
+                  <td data-label="Teammedlem">{data.name || 'N/A'}</td>
+                  <td data-label="Sales ID">{data.salesId || 'N/A'}</td>
+                  <td data-label="Reg Sälj">
                     <input
                       type="number"
                       value={data.regSales || 0}
                       onChange={(e) => handleEditFieldChange(id, 'regSales', e.target.value)}
                     />
                   </td>
-                  <td>
+                  <td data-label="Ogiltigt Belopp">
                     <input
                       type="number"
                       value={data.invalidAmount || 0}
                       onChange={(e) => handleEditFieldChange(id, 'invalidAmount', e.target.value)}
                     />
                   </td>
-                  <td>
+                  <td data-label="Utanför målgrupp">
                     <input
                       type="number"
                       value={data.outOfTarget || 0}
                       onChange={(e) => handleEditFieldChange(id, 'outOfTarget', e.target.value)}
                     />
                   </td>
-                  <td>
+                  <td data-label="Pending">
                     <input
                       type="number"
                       value={data.pending || 0}
                       onChange={(e) => handleEditFieldChange(id, 'pending', e.target.value)}
                     />
                   </td>
-                  <td>{data.total || 0}</td>
+                  <td data-label="Total">
+                    {data.total || 0}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -548,7 +578,7 @@ const QualityReporting = () => {
 
       {message && <p className="message">{message}</p>}
 
-      {/* Logg för senaste rapporterna */}
+      {/* ---------- SENASTE RAPPORTER ---------- */}
       <div className="recent-reports">
         <h2>Senaste Rapporter</h2>
         {recentReports.map(report => (
@@ -556,6 +586,7 @@ const QualityReporting = () => {
             <h3>{report.date} - {report.organisation}</h3>
             <button onClick={() => handleEditReport(report)} className="edit-button">Ändra</button>
             <button onClick={() => handleDeleteReport(report.id)} className="delete-button">Ta bort</button>
+
             <table className="report-table">
               <thead>
                 <tr>
@@ -571,13 +602,13 @@ const QualityReporting = () => {
               <tbody>
                 {Object.entries(report.members || {}).map(([id, data]) => (
                   <tr key={id}>
-                    <td>{data.name || 'N/A'}</td>
-                    <td>{data.salesId || 'N/A'}</td>
-                    <td>{data.regSales || 0}</td>
-                    <td>{data.invalidAmount || 0}</td>
-                    <td>{data.outOfTarget || 0}</td>
-                    <td>{data.pending || 0}</td>
-                    <td>{data.total || 0}</td>
+                    <td data-label="Teammedlem">{data.name || 'N/A'}</td>
+                    <td data-label="Sales ID">{data.salesId || 'N/A'}</td>
+                    <td data-label="Reg Sälj">{data.regSales || 0}</td>
+                    <td data-label="Ogiltigt Belopp">{data.invalidAmount || 0}</td>
+                    <td data-label="Utanför målgrupp">{data.outOfTarget || 0}</td>
+                    <td data-label="Pending">{data.pending || 0}</td>
+                    <td data-label="Total">{data.total || 0}</td>
                   </tr>
                 ))}
               </tbody>

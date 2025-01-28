@@ -2,260 +2,334 @@
 
 /* General Styles */
 .final-report-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+h1, h2 {
+  text-align: center;
+}
+
+/* Filter and Dropdown Containers */
+.filter-container, .dropdown-container {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  align-items: center; /* Gör att innehållet centreras vertikalt */
+}
+
+.filter-container label, .dropdown-container label {
+  flex: 1 1 100%;
+  margin-bottom: 5px;
+}
+
+.filter-container input[type="date"],
+.filter-container input[type="text"],
+.dropdown-container select {
+  flex: 1 1 100%;
+  padding: 8px;
+  margin-bottom: 10px;
+}
+
+@media (min-width: 600px) {
+  .filter-container label,
+  .filter-container input[type="date"],
+  .filter-container input[type="text"],
+  .dropdown-container label,
+  .dropdown-container select {
+    flex: 1 1 calc(50% - 10px);
+    margin-right: 10px;
   }
-  
-  h1, h2 {
-    text-align: center;
+}
+
+/* Report Tables */
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
+}
+
+.report-table th,
+.report-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+.report-table th {
+  background-color: #f2f2f2;
+  text-align: left;
+}
+
+.report-table td input[type="text"] {
+  width: 100%;
+  padding: 5px;
+  box-sizing: border-box;
+}
+
+/* --- NYTT: Gör .report-table responsiv (liknande previous-reports-table) --- */
+@media (max-width: 768px) {
+  .report-table {
+    border: 0;
+    min-width: unset;
   }
-  
-  /* Filter and Dropdown Containers */
-  .filter-container, .dropdown-container {
-    display: flex;
-    flex-wrap: wrap;
-    margin-bottom: 20px;
+
+  .report-table thead {
+    display: none;
   }
-  
-  .filter-container label, .dropdown-container label {
-    flex: 1 1 100%;
+
+  .report-table tr {
+    display: block;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #ddd;
+  }
+
+  .report-table td {
+    display: block;
+    text-align: right;
+    padding-left: 50%;
+    position: relative;
+  }
+
+  .report-table td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 15px;
+    width: calc(50% - 30px);
+    font-weight: bold;
+    text-align: left;
+  }
+
+  .report-table td:last-child {
+    border-bottom: 0;
+  }
+}
+/* --- SLUT NYTT FÖR report-table --- */
+
+
+/* Additional Info Section */
+.additional-info {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.input-group {
+  flex: 1 1 100%;
+  margin-bottom: 10px;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.input-group input,
+.input-group span {
+  width: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+@media (min-width: 600px) {
+  .input-group {
+    flex: 1 1 calc(33.333% - 10px);
+    margin-right: 10px;
+  }
+}
+
+/* Buttons */
+
+/* Knapp för att spara rapporten */
+.submit-button {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  background-color: #007bff; /* Bootstrap primary color */
+  color: white;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.submit-button:hover {
+  background-color: #0056b3;
+}
+
+/* Knapp för att ta bort vald medlem (i nuvarande rapport) och för att ta bort en rapport */
+.remove-button, .delete-button {
+  padding: 5px 10px;
+  background-color: #dc3545; /* Bootstrap danger color */
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.remove-button:hover, .delete-button:hover {
+  background-color: #c82333;
+}
+
+/* Expanded Report Row */
+.expanded-row {
+  background-color: #f9f9f9;
+}
+
+.expanded-row td {
+  padding: 10px;
+}
+
+/* Responsive Table for Previous Reports */
+.previous-reports-table-wrapper {
+  overflow-x: auto;
+}
+
+.previous-reports-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px; /* Ensure the table doesn't shrink too much */
+}
+
+.previous-reports-table th,
+.previous-reports-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.previous-reports-table th {
+  background-color: #f2f2f2;
+}
+
+/* Mobile Styles för .previous-reports-table */
+@media (max-width: 768px) {
+  .previous-reports-table {
+    border: 0;
+    min-width: unset;
+  }
+
+  .previous-reports-table thead {
+    display: none;
+  }
+
+  .previous-reports-table tr {
+    margin-bottom: 15px;
+    display: block;
+    border-bottom: 2px solid #ddd;
+  }
+
+  .previous-reports-table td {
+    display: block;
+    text-align: right;
+    padding-left: 50%;
+    position: relative;
+  }
+
+  .previous-reports-table td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 15px;
+    width: calc(50% - 30px);
+    font-weight: bold;
+    text-align: left;
+  }
+
+  .previous-reports-table td:last-child {
+    border-bottom: 0;
+  }
+
+  /* Anpassningar för den expanderade raden */
+  .expanded-row td {
+    display: block;
+    padding: 10px;
+    position: relative;
+    text-align: left;
+  }
+
+  .expanded-row td[colspan] {
+    padding-left: 15px;
+  }
+
+  .expanded-row h4 {
+    font-size: 18px;
+    margin-top: 0;
+    margin-bottom: 10px;
+  }
+
+  .expanded-row ul {
+    padding-left: 20px;
+    margin: 0;
+  }
+
+  .expanded-row ul li {
     margin-bottom: 5px;
+    position: relative;
+    padding-left: 15px;
   }
-  
+
+  .expanded-row ul li::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+  }
+
+  /* Justeringar för åtgärdsknappar */
+  .previous-reports-table td[data-label="Åtgärder"] {
+    display: flex;
+    justify-content: flex-end;
+    padding-left: 15px;
+  }
+
+  .previous-reports-table td[data-label="Åtgärder"] button {
+    margin-left: 5px;
+  }
+}
+
+/* Media Queries for Larger Screens */
+@media (min-width: 768px) {
+  .submit-button {
+    width: auto;
+    margin: 0 auto;
+  }
+}
+
+@media (min-width: 992px) {
   .filter-container input[type="date"],
   .filter-container input[type="text"],
   .dropdown-container select {
-    flex: 1 1 100%;
-    padding: 8px;
-    margin-bottom: 10px;
+    flex: 1 1 calc(33.333% - 10px);
   }
-  
-  @media (min-width: 600px) {
-    .filter-container label,
-    .filter-container input[type="date"],
-    .filter-container input[type="text"],
-    .dropdown-container label,
-    .dropdown-container select {
-      flex: 1 1 calc(50% - 10px);
-      margin-right: 10px;
-    }
-  }
-  
-  /* Report Tables */
-  .report-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 20px;
-  }
-  
-  .report-table th, .report-table td {
-    border: 1px solid #ddd;
-    padding: 8px;
-  }
-  
-  .report-table th {
-    background-color: #f2f2f2;
-    text-align: left;
-  }
-  
-  .report-table td input[type="text"] {
-    width: 100%;
-    padding: 5px;
-    box-sizing: border-box;
-  }
-  
-  /* Additional Info Section */
-  .additional-info {
-    display: flex;
-    flex-wrap: wrap;
-    margin-bottom: 20px;
-  }
-  
+
   .input-group {
-    flex: 1 1 100%;
-    margin-bottom: 10px;
+    flex: 1 1 calc(25% - 10px);
   }
-  
-  .input-group label {
-    display: block;
-    margin-bottom: 5px;
-  }
-  
-  .input-group input, .input-group span {
-    width: 100%;
-    padding: 8px;
-    box-sizing: border-box;
-  }
-  
-  @media (min-width: 600px) {
-    .input-group {
-      flex: 1 1 calc(33.333% - 10px);
-      margin-right: 10px;
-    }
-  }
-  
-  /* Buttons */
-  .submit-button {
-    display: block;
-    width: 100%;
-    padding: 12px;
-    background-color: #007bff; /* Bootstrap primary color */
-    color: white;
-    border: none;
-    cursor: pointer;
-    text-align: center;
-    font-size: 16px;
-    margin-bottom: 20px;
-  }
-  
-  .submit-button:hover {
-    background-color: #0056b3;
-  }
-  
-  .remove-button, .delete-button {
-    padding: 5px 10px;
-    background-color: #dc3545; /* Bootstrap danger color */
-    color: white;
-    border: none;
-    cursor: pointer;
-    font-size: 14px;
-  }
-  
-  .remove-button:hover, .delete-button:hover {
-    background-color: #c82333;
-  }
-  
-  /* Expanded Report Row */
-  .expanded-row {
-    background-color: #f9f9f9;
-  }
-  
-  .expanded-row td {
-    padding: 10px;
-  }
-  
-  /* Responsive Table for Previous Reports */
-  .previous-reports-table-wrapper {
-    overflow-x: auto;
-  }
-  
-  .previous-reports-table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 600px; /* Ensure the table doesn't shrink too much */
-  }
-  
-  .previous-reports-table th, .previous-reports-table td {
-    border: 1px solid #ddd;
-    padding: 8px;
-    text-align: left;
-  }
-  
-  .previous-reports-table th {
-    background-color: #f2f2f2;
-  }
-  
-  /* Mobile Styles */
-  @media (max-width: 768px) {
-    .previous-reports-table {
-      border: 0;
-      min-width: unset;
-    }
-  
-    .previous-reports-table thead {
-      display: none;
-    }
-  
-    .previous-reports-table tr {
-      margin-bottom: 15px;
-      display: block;
-      border-bottom: 2px solid #ddd;
-    }
-  
-    .previous-reports-table td {
-      display: block;
-      text-align: right;
-      padding-left: 50%;
-      position: relative;
-    }
-  
-    .previous-reports-table td::before {
-      content: attr(data-label);
-      position: absolute;
-      left: 15px;
-      width: calc(50% - 30px);
-      font-weight: bold;
-      text-align: left;
-    }
-  
-    .previous-reports-table td:last-child {
-      border-bottom: 0;
-    }
-  
-    /* Anpassningar för den expanderade raden */
-    .expanded-row td {
-      display: block;
-      padding: 10px;
-      position: relative;
-      text-align: left;
-    }
-  
-    .expanded-row td[colspan] {
-      padding-left: 15px;
-    }
-  
-    .expanded-row h4 {
-      font-size: 18px;
-      margin-top: 0;
-      margin-bottom: 10px;
-    }
-  
-    .expanded-row ul {
-      padding-left: 20px;
-      margin: 0;
-    }
-  
-    .expanded-row ul li {
-      margin-bottom: 5px;
-      position: relative;
-      padding-left: 15px;
-    }
-  
-    .expanded-row ul li::before {
-      content: '•';
-      position: absolute;
-      left: 0;
-    }
-  
-    /* Justeringar för åtgärdsknappar */
-    .previous-reports-table td[data-label="Åtgärder"] {
-      display: flex;
-      justify-content: flex-end;
-      padding-left: 15px;
-    }
-  
-    .previous-reports-table td[data-label="Åtgärder"] button {
-      margin-left: 5px;
-    }
-  }
-  
-  /* Media Queries for Larger Screens */
-  @media (min-width: 768px) {
-    .submit-button {
-      width: auto;
-      margin: 0 auto;
-    }
-  }
-  
-  @media (min-width: 992px) {
-    .filter-container input[type="date"],
-    .filter-container input[type="text"],
-    .dropdown-container select {
-      flex: 1 1 calc(33.333% - 10px);
-    }
-  
-    .input-group {
-      flex: 1 1 calc(25% - 10px);
-    }
-  }
+}
+
+/* Knapp för att lägga till alla teammedlemmar */
+/* 
+   Vill du att knappen hamnar precis till höger om dropdown? 
+   Använd t.ex. margin-left: 10px; 
+   Vill du trycka ut den till högerkanten i en flex-container?
+   Använd margin-left: auto; 
+*/
+.add-all-button {
+  font-size: 1rem;
+  padding: 0.5rem 1rem;
+  background-color: #4285f4; 
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  margin-left: 10px;  /* Exempel: lite mellanrum mellan select och knapp */
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.add-all-button:hover {
+  background-color: #2c6cd3;
+}
+
+.add-all-button:active {
+  background-color: #1d4f96;
+}

@@ -4,7 +4,7 @@ import { signOut } from 'firebase/auth';
 import { useAuth } from '../auth';
 import { auth, db } from '../firebaseConfig';
 import { doc, getDoc } from 'firebase/firestore';
-import logga from '../img/logga.png';  // Anpassa sökvägen beroende på var du ligger
+import logga from '../img/logga.png';  // Anpassa sökvägen beroende på var du har din logga
 import './styles/Layout.css';
 
 const MainLayout = () => {
@@ -13,19 +13,28 @@ const MainLayout = () => {
   const { currentUserRole, currentUser } = useAuth();
   const navigate = useNavigate();
 
+  // Funktion för att toggla menyn
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
+  // Funktion för att stänga menyn (används vid klick på länk/knapp)
+  const closeMenu = () => {
+    setIsMenuOpen(false);
+  };
+
+  // Hantera utloggning
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      closeMenu();       // Stänger menyn även vid utloggning
       navigate('/login');
     } catch (error) {
       console.error('Error logging out: ', error);
     }
   };
 
+  // Hämta menykomponenter från Firestore om currentUser är "uppdragsgivare"
   useEffect(() => {
     const fetchMenuComponents = async () => {
       if (currentUserRole === 'uppdragsgivare' && currentUser) {
@@ -39,7 +48,6 @@ const MainLayout = () => {
         }
       }
     };
-
     fetchMenuComponents();
   }, [currentUser, currentUserRole]);
 
@@ -54,7 +62,9 @@ const MainLayout = () => {
       { path: '/sales-specification', label: 'Försäljningsspecifikation' },
       { path: '/admin/salary-statistics', label: 'Lönestatistik' },
       { path: '/admin/statistics', label: 'Statistik' },
-      { path: '/manage-organizations', label: 'Hantera Organisationer' }, // Ny länk
+      { path: '/manage-organizations', label: 'Hantera Organisationer' },
+      { path: '/uppdragsgivare/hellofresh', label: 'HelloFresh' },
+      { path: '/uppdragsgivare/factor-dashboard', label: 'Factor Dashboard' } 
     ],
     'sales-manager': [
       { path: '/sales-manager/dashboard', label: 'Dashboard' },
@@ -68,7 +78,7 @@ const MainLayout = () => {
       { path: '/quality/dashboard', label: 'Kvalité Dashboard' },
       { path: '/quality/reporting', label: 'Rapportering' },
       { path: '/quality/statistics', label: 'Kvalité Statistik' },
-      { path: '/manage-organizations', label: 'Hantera Organisationer' } // Ny länk
+      { path: '/manage-organizations', label: 'Hantera Organisationer' }
     ],
     user: [
       { path: '/user/dashboard', label: 'Start' },
@@ -80,15 +90,15 @@ const MainLayout = () => {
       { path: '/uppdragsgivare/projects', label: 'Mina Projekt' },
       { path: '/uppdragsgivare/reports', label: 'Rapporter' },
       { path: '/uppdragsgivare/factor-dashboard', label: 'Factor Dashboard' },
-      { path: '/uppdragsgivare/hellofresh', label: 'HelloFresh' } // Ny menykomponent
-  ],
+      { path: '/uppdragsgivare/hellofresh', label: 'HelloFresh' }
+    ],
   };
 
-  // Filtrera menyn för uppdragsgivare
+  // Filtrera menyn om användaren är uppdragsgivare
   const filteredMenuItems =
     currentUserRole === 'uppdragsgivare'
       ? menuItems.uppdragsgivare.filter((item) =>
-          menuComponents.includes(item.path.split('/')[2]) // Exempel: 'dashboard', 'projects', 'reports'
+          menuComponents.includes(item.path.split('/')[2])
         )
       : menuItems[currentUserRole] || [];
 
@@ -98,7 +108,6 @@ const MainLayout = () => {
         <span className="menu-icon" onClick={toggleMenu}>
           &#9776;
         </span>
-        
         <img src={logga} alt="Logga" />
       </header>
 
@@ -108,14 +117,19 @@ const MainLayout = () => {
             {/* Dynamiska länkar baserat på roll */}
             {filteredMenuItems.map((item, index) => (
               <li key={index}>
-                <Link to={item.path}>{item.label}</Link>
+                {/* Stäng menyn när du klickar på en länk */}
+                <Link to={item.path} onClick={closeMenu}>
+                  {item.label}
+                </Link>
               </li>
             ))}
 
             {/* Profil och Logout */}
             {currentUserRole !== 'uppdragsgivare' && (
               <li>
-                <Link to="/profile">Min Profil</Link>
+                <Link to="/profile" onClick={closeMenu}>
+                  Min Profil
+                </Link>
               </li>
             )}
             <li>
