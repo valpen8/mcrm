@@ -1,168 +1,335 @@
+/* ========== HUVUDKONTAINER (liknande .manage-users-container) ========== */
 .statistics-container {
-    width: 90%;
-    margin: 0 auto;
-    padding: 20px;
-  }
-  
-  /* Tabelllayout för filtersektionen */
-  .filter-table {
+  width: 90%;
+  max-width: 1400px;
+  margin: 20px auto;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* ========== FILTERSEKTION ========== */
+.filter-container,
+.filter-table {
+  width: 100%;
+  border-spacing: 15px;
+  margin-bottom: 20px;
+}
+
+.filter-table label {
+  font-weight: bold;
+}
+
+.filter-table select,
+.filter-table input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+/* Knappstilar */
+.filter-button,
+.reset-button {
+  padding: 10px 20px;
+  background-color: #17a2b8;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  margin: 10px;
+  font-size: 14px;
+}
+
+.reset-button {
+  background-color: #6c757d;
+}
+
+.filter-button:hover,
+.reset-button:hover {
+  background-color: #138496;
+}
+
+/* ========== Datum- och dropdown-kontainers ========== */
+.dropdowns-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.date-filter-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.date-filter-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.date-filter-group label {
+  margin-bottom: 3px;
+  font-size: 14px;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.date-filter-container input {
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+}
+
+/* ========== Knappcontainer ========== */
+.buttons-container {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 10px;
+}
+
+/* ========== Totalt Försäljning ========== */
+.total-sales {
+  margin: 20px 0;
+  margin-right: center;
+  text-align: center;
+  font-weight: bold;
+  font-size: 18px;
+  color: #17a2b8;
+}
+
+/* ========== Totalt per Organisation ========== */
+.org-totals {
+  margin: 20px 0;
+  text-align: center;
+  font-weight: bold;
+  font-size: 18px;
+  color: #17a2b8;
+}
+
+.org-totals h3 {
+  margin-bottom: 10px;
+  /* Se till att rubriken alltid visas */
+  display: block;
+}
+
+.org-totals table {
+  margin: 0 auto;
+  border-collapse: collapse;
+}
+
+.org-totals th,
+.org-totals td {
+  border: 1px solid #ddd;
+  padding: 10px;
+  text-align: center;
+  font-size: 14px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.org-totals th {
+  background-color: #f2f2f2;
+}
+
+/* ========== Resultattabell ========== */
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.statistics-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  table-layout: fixed;
+}
+
+.statistics-table th,
+.statistics-table td {
+  border: 1px solid #ddd;
+  text-align: center;
+  padding: 12px;
+  font-size: 14px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+.statistics-table th {
+  background-color: #f9f9f9;
+}
+
+/* ========== RESPONSIVA STYLES ========== */
+
+/* För skärmar upp till 1024px */
+@media (max-width: 1024px) {
+  .statistics-container {
     width: 100%;
-    border-spacing: 15px;
-    margin-bottom: 20px;
+    padding: 10px;
   }
-  
+
+  .filter-table {
+    border-spacing: 10px;
+  }
+
+  .filter-table td {
+    display: block;
+    width: 100%;
+  }
+
   .filter-table label {
-    font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
   }
-  
+
   .filter-table select,
   .filter-table input {
     width: 100%;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
   }
-  
-  /* Responsiv knapp */
-  .filter-button,
-  .reset-button {
-    padding: 10px 20px;
-    background-color: #17a2b8;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    margin: 10px;
+}
+
+/* För skärmar upp till 768px */
+@media (max-width: 768px) {
+  .filter-table {
+    margin-bottom: 20px;
+    border-spacing: 10px;
   }
-  
-  .reset-button {
-    background-color: #6c757d;
+
+  .filter-table tr {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
   }
-  
-  .filter-button:hover,
-  .reset-button:hover {
-    opacity: 0.8;
+
+  .filter-table td {
+    flex: 1 1 calc(50% - 20px);
+    margin: 5px;
   }
-  
-  /* Container för responsiv tabell */
-  .table-container {
-    overflow-x: auto;
+
+  .filter-table td label {
+    font-size: 14px;
   }
-  
-  .statistics-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
+
+  .filter-table select,
+  .filter-table input {
+    padding: 8px;
+    font-size: 14px;
   }
-  
+
   .statistics-table th,
   .statistics-table td {
-    border: 1px solid #ddd;
-    text-align: center;
-    padding: 12px;
+    font-size: 12px;
+    padding: 10px;
   }
-  
-  .statistics-table th {
-    background-color: #f9f9f9;
-  }
-  
-  /* Responsiv anpassning för små skärmar */
-  @media (max-width: 1024px) {
-    .statistics-container {
-      width: 100%;
-      padding: 10px;
-    }
-  
-    .filter-table {
-      border-spacing: 10px;
-    }
-  
-    .filter-table td {
-      display: block;
-      width: 100%;
-    }
-  
-    .filter-table label {
-      display: block;
-      margin-bottom: 5px;
-    }
-  
-    .filter-table select,
-    .filter-table input {
-      width: 100%;
-    }
-  
-    .button-container {
-      text-align: center;
-    }
-  }
-  
-  @media (max-width: 768px) {
-    .filter-table {
-      margin-bottom: 20px;
-      border-spacing: 10px;
-    }
-  
-    .filter-table tr {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-    }
-  
-    .filter-table td {
-      flex: 1 1 calc(50% - 20px); /* Flex layout för att passa i två kolumner */
-      margin: 5px;
-    }
-  
-    .filter-table td label {
-      font-size: 14px;
-    }
-  
-    .filter-table select,
-    .filter-table input {
-      padding: 8px;
-      font-size: 14px;
-    }
-  
-    .statistics-table th,
-    .statistics-table td {
-      font-size: 12px;
-      padding: 10px;
-    }
-  }
-  
-  @media (max-width: 480px) {
-    .filter-table tr {
-      flex-direction: column; /* Byt till kolumnlayout på små skärmar */
-    }
-  
-    .filter-table td {
-      flex: 1 1 100%; /* Gör cellerna 100% breda */
-      margin: 5px 0;
-    }
-  
-    .filter-table label {
-      font-size: 14px;
-    }
-  
-    .filter-table select,
-    .filter-table input {
-      padding: 8px;
-      font-size: 14px;
-      width: 100%;
-    }
-  
-    .statistics-table th,
-    .statistics-table td {
-      padding: 8px;
-      font-size: 10px;
-    }
 
-    .total-sales {
-        margin: 20px 0;
-        text-align: center;
-        font-weight: bold;
-        font-size: 18px;
-        color: #17a2b8;
-      }
+  .org-totals th,
+  .org-totals td {
+    font-size: 12px;
+    padding: 8px;
   }
+}
+
+/* För riktigt små skärmar upp till 480px */
+@media (max-width: 480px) {
+  .filter-table tr {
+    flex-direction: column;
+  }
+
+  .filter-table td {
+    flex: 1 1 100%;
+    margin: 5px 0;
+  }
+
+  .filter-table label {
+    font-size: 14px;
+  }
+
+  .filter-table select,
+  .filter-table input {
+    padding: 8px;
+    font-size: 14px;
+    width: 100%;
+  }
+
+  /* Anpassa tabellens layout för mobilvyn */
+  .statistics-table {
+    table-layout: auto;
+  }
+  .statistics-table th,
+  .statistics-table td {
+    padding: 6px;  /* Mindre padding gör raderna smalare */
+    font-size: 10px;
+  }
+  
+  /* Justera storleken på totalsummorna */
+  .total-sales,
+  .org-totals {
+    font-size: 16px;
+  }
+  
+  /* Se till att rubriken i .org-totals alltid visas på små skärmar */
+  .org-totals h3 {
+    display: block !important;
+    font-size: 16px;
+    margin-bottom: 10px;
+  }
+  
+  /* Responsiv blocklayout för tabellen med data-labels */
+  .statistics-table,
+  .statistics-table thead,
+  .statistics-table tbody,
+  .statistics-table th,
+  .statistics-table td,
+  .statistics-table tr {
+    display: block;
+  }
+  
+  /* Dölj ursprungliga th i mobilvyn */
+  .statistics-table thead {
+    display: none;
+  }
+  
+  /* Varje rad (box) blir smalare genom mindre marginal och padding */
+  .statistics-table tr {
+    margin-bottom: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;  /* Mindre rundade hörn */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background: #fff;
+    padding: 5px;
+  }
+  
+  .statistics-table td {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #ddd;
+    text-align: left;
+    font-size: 10px;
+    padding: 6px;
+    /* Lämnar plats för data-label: */
+    padding-left: 45%;
+  }
+  
+  .statistics-table td:last-child {
+    border-bottom: none;
+  }
+  
+  .statistics-table td:before {
+    content: attr(data-label);
+    font-weight: bold;
+    flex: 0 0 40%;
+    text-align: left;
+    font-size: 10px;
+    color: #333;
+    padding-right: 5px;
+  }
+}

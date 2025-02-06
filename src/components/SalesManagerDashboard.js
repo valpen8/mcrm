@@ -8,15 +8,16 @@ const SalesManagerDashboard = () => {
   const [userReports, setUserReports] = useState([]);
   const [totalSales, setTotalSales] = useState(0);
   const [averageSales, setAverageSales] = useState(0);
-  const [totalTeamSales, setTotalTeamSales] = useState(0);  // Total försäljning för teamet
-  const [averageTeamSales, setAverageTeamSales] = useState(0);  // Genomsnittlig försäljning för teamet
-  const [teamMembers, setTeamMembers] = useState([]); // Teammedlemmar med försäljning
+  const [totalTeamSales, setTotalTeamSales] = useState(0);
+  const [averageTeamSales, setAverageTeamSales] = useState(0);
+  const [teamMembers, setTeamMembers] = useState([]);
   const [topUsers, setTopUsers] = useState([]);
   const [topTeams, setTopTeams] = useState([]);
-  const [loading, setLoading] = useState(true); // Laddningsstatus
+  const [yesterdayStats, setYesterdayStats] = useState([]);
+  const [loading, setLoading] = useState(true);
   const { currentUser } = useAuth();
 
-  // Funktion för att räkna ut perioden mellan 18:e till 17:e
+  // Period mellan 18:e och 17:e
   const getCurrentPeriod = () => {
     const today = new Date();
     let start, end;
@@ -32,6 +33,21 @@ const SalesManagerDashboard = () => {
     return { start, end };
   };
 
+  // Hämta gårdagens datumintervall
+  const getYesterdayPeriod = () => {
+    const today = new Date();
+    const start = new Date(today);
+    const end = new Date(today);
+
+    start.setDate(today.getDate() - 1);
+    start.setHours(0, 0, 0, 0);
+
+    end.setDate(today.getDate() - 1);
+    end.setHours(23, 59, 59, 999);
+
+    return { start, end };
+  };
+
   useEffect(() => {
     if (currentUser) {
       fetchData();
@@ -39,11 +55,54 @@ const SalesManagerDashboard = () => {
   }, [currentUser]);
 
   const fetchData = async () => {
-    setLoading(true); // Sätt till laddningsläge
-    await Promise.all([fetchReports(), fetchTeamData(), fetchTopUsers(), fetchTopTeams()]);
-    setLoading(false); // Avsluta laddningsläge
+    setLoading(true);
+    await Promise.all([
+      fetchReports(),
+      fetchTeamData(),
+      fetchTopUsers(),
+      fetchTopTeams(),
+      fetchYesterdayStats()
+    ]);
+    setLoading(false);
   };
 
+  // Hämtar gårdagens data från finalReports
+  const fetchYesterdayStats = async () => {
+    const { start, end } = getYesterdayPeriod();
+    try {
+      const reportsSnapshot = await getDocs(collection(db, 'finalReports'));
+      const reportsData = reportsSnapshot.docs
+        .map((doc) => doc.data())
+        .filter((report) => {
+          const reportDate = new Date(report.date);
+          return reportDate >= start && reportDate <= end;
+        });
+
+      // Gruppera efter managerName (fallande sortering på totalSales)
+      const teamStats = {};
+      reportsData.forEach((report) => {
+        const team = report.managerName || 'Okänt team';
+        if (!teamStats[team]) {
+          teamStats[team] = 0;
+        }
+        teamStats[team] += parseFloat(report.totalSales || 0);
+      });
+
+      const statsArray = Object.entries(teamStats).map(([team, totalSales]) => ({
+        team,
+        totalSales
+      }));
+
+      // Sortera fallande efter antal avtal
+      statsArray.sort((a, b) => b.totalSales - a.totalSales);
+
+      setYesterdayStats(statsArray);
+    } catch (error) {
+      console.error("Error fetching yesterday's stats:", error);
+    }
+  };
+
+  // Hämtar inloggad användares rapporter
   const fetchReports = async () => {
     if (!currentUser) return;
     const { start, end } = getCurrentPeriod();
@@ -67,13 +126,12 @@ const SalesManagerDashboard = () => {
     }
   };
 
-  // Hämtar statistik för hela teamet
+  // Hämtar data för hela teamet
   const fetchTeamData = async () => {
     if (!currentUser) return;
     const { start, end } = getCurrentPeriod();
 
     try {
-      // Hämta alla teammedlemmar (användare som manager hanterar)
       const teamQuery = query(collection(db, 'users'), where('managerUid', '==', currentUser.uid));
       const teamSnapshot = await getDocs(teamQuery);
 
@@ -81,8 +139,7 @@ const SalesManagerDashboard = () => {
         teamSnapshot.docs.map(async (userDoc) => {
           const userId = userDoc.id;
           const userName = `${userDoc.data().firstName} ${userDoc.data().lastName}`;
-
-          // Hämta rapporter för varje teammedlem
+          
           const reportsQuery = query(
             collection(db, `users/${userId}/reports`),
             where('date', '>=', start.toISOString()),
@@ -90,7 +147,6 @@ const SalesManagerDashboard = () => {
           );
           const reportsSnapshot = await getDocs(reportsQuery);
 
-          // Summera försäljningen för varje medlem
           const totalSales = reportsSnapshot.docs.reduce((sum, report) => {
             const reportData = report.data();
             return sum + parseFloat(reportData.sales || 0);
@@ -100,9 +156,10 @@ const SalesManagerDashboard = () => {
         })
       );
 
-      // Summera total försäljning för hela teamet
       const totalSalesForTeam = teamData.reduce((sum, member) => sum + member.totalSales, 0);
-      const averageSalesForTeam = teamData.length > 0 ? totalSalesForTeam / teamData.length : 0;
+      const averageSalesForTeam = teamData.length > 0
+        ? totalSalesForTeam / teamData.length
+        : 0;
 
       setTeamMembers(teamData);
       setTotalTeamSales(totalSalesForTeam);
@@ -112,10 +169,10 @@ const SalesManagerDashboard = () => {
     }
   };
 
+  // Hämtar topp 10 användare
   const fetchTopUsers = async () => {
     const { start, end } = getCurrentPeriod();
     try {
-      // Hämta alla användare
       const usersSnapshot = await getDocs(collection(db, 'users'));
   
       const allUsers = usersSnapshot.docs.map(async (userDoc) => {
@@ -123,7 +180,6 @@ const SalesManagerDashboard = () => {
         const userData = userDoc.data();
         const userName = `${userData.firstName} ${userData.lastName}`;
   
-        // Hämta rapporter för varje användare
         const reportsQuery = query(
           collection(db, `users/${userId}/reports`),
           where('date', '>=', start.toISOString()),
@@ -139,12 +195,10 @@ const SalesManagerDashboard = () => {
         return { userName, totalSales };
       });
   
-      // Vänta tills alla användares data är hämtad och bearbetad
       const resolvedUsers = await Promise.all(allUsers);
   
-      // Sortera användarna efter total försäljning och välj topp 10
       const topUsers = resolvedUsers
-        .filter(user => user.totalSales > 0) // Exkludera användare med noll försäljning
+        .filter(user => user.totalSales > 0)
         .sort((a, b) => b.totalSales - a.totalSales)
         .slice(0, 10);
   
@@ -154,6 +208,7 @@ const SalesManagerDashboard = () => {
     }
   };
 
+  // Hämtar topp 5 team
   const fetchTopTeams = async () => {
     const { start, end } = getCurrentPeriod();
     try {
@@ -177,7 +232,9 @@ const SalesManagerDashboard = () => {
       const teamPromises = Object.entries(teams).map(async ([managerId, totalSales]) => {
         const managerDoc = await getDocs(query(collection(db, 'users'), where('__name__', '==', managerId)));
         const managerData = managerDoc.docs[0]?.data();
-        const managerName = managerData ? `${managerData.firstName} ${managerData.lastName}` : managerId;
+        const managerName = managerData
+          ? `${managerData.firstName} ${managerData.lastName}`
+          : managerId;
         return { managerName, totalSales };
       });
 
@@ -225,11 +282,22 @@ const SalesManagerDashboard = () => {
           </div>
 
           <div className="top-sales-managers">
-            <h2>Bästa team </h2>
+            <h2>Bästa team</h2>
             <ul>
               {topTeams.map((team, index) => (
                 <li key={index}>
                   {index + 1}. {team.managerName}: {team.totalSales} avtal
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="yesterday-stats">
+            <h2>Gårdagens Statistik</h2>
+            <ul>
+              {yesterdayStats.map((stat, index) => (
+                <li key={index}>
+                  {index + 1}. {stat.team}: {stat.totalSales} avtal
                 </li>
               ))}
             </ul>

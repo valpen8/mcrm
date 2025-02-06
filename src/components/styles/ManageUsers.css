@@ -1,6 +1,6 @@
 .manage-users-container {
   width: 90%;
-  max-width: 1400px; /* Ökad maxbredd för stora skärmar */
+  max-width: 1400px;
   margin: 20px auto;
   padding: 20px;
   background-color: #f9f9f9;
@@ -8,13 +8,13 @@
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Filtersektion */
+/* ========= FILTERSEKTION ========= */
 .filter-container {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 20px;
+  gap: 20px;
 }
 
 .filter-container label {
@@ -44,47 +44,96 @@
   background-color: #138496;
 }
 
-/* Dropdown för filtrering av aktiva och avslutade användare */
-.status-filter-container {
-  margin-bottom: 10px;
+/* === Dropdowns-container === */
+.dropdowns-container {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
 }
 
-.status-filter-container select {
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 5px;
+.status-filter-container {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
 }
 
-/* Datumfältens styling */
+.status-filter-container label {
+  margin-right: 5px;
+}
+
+/* === Datumfältens styling === */
 .date-filter-container {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  gap: 10px;
   margin: 10px 0;
+}
+
+/* Flytta label närmare input-fälten */
+.date-filter-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.date-filter-group label {
+  margin-bottom: 3px;
+  font-size: 14px;
+  font-weight: bold;
+  white-space: nowrap;
 }
 
 .date-filter-container input {
   padding: 10px;
-  margin: 5px;
   border-radius: 5px;
   border: 1px solid #ddd;
   font-size: 14px;
 }
 
-/* Tabellens styling */
+/* === Container för knappar === */
+.buttons-container {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 10px;
+}
+
+/* ========= ANPASSNING PÅ STÖRRE SKÄRMAR ========= */
+@media (min-width: 1025px) {
+  .filter-container {
+    justify-content: flex-start;
+  }
+
+  .dropdowns-container {
+    order: 1;
+    margin-right: 20px;
+  }
+
+  .date-filter-container {
+    order: 2;
+    margin-right: 20px;
+  }
+
+  .buttons-container {
+    order: 3;
+    margin-left: auto;
+    width: auto;
+  }
+}
+
+/* ========= TABELL ========= */
 .user-table-container {
   width: 100%;
-  overflow-x: auto; /* Gör tabellen scrollbar på mindre skärmar */
+  overflow-x: auto;
 }
 
 .user-table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 20px;
-  table-layout: fixed; /* Fixera layouten för att passa in kolumner */
+  table-layout: fixed;
 }
 
 .user-table th,
@@ -93,11 +142,9 @@
   border: 1px solid #ddd;
   text-align: center;
   font-size: 14px;
-  
-  /* Radbrytning av för långa texter (t.ex. långa mejladresser): */
-  word-wrap: break-word;    /* äldre syntax */
-  overflow-wrap: break-word;/* modern syntax */
-  white-space: normal;      /* tillåt radbrytning */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
 }
 
 .user-table th {
@@ -131,11 +178,11 @@
   opacity: 0.8;
 }
 
-/* Responsiv styling för tabell */
+/* ===== Responsiv styling för tabell ===== */
 @media (max-width: 1024px) {
   .user-table th,
   .user-table td {
-    font-size: 12px; /* Minska fontstorleken på mindre skärmar */
+    font-size: 12px;
     padding: 10px;
   }
 }
@@ -150,8 +197,8 @@
     display: block;
   }
 
-  .user-table thead tr {
-    display: none; /* Dölj tabellhuvudet på små skärmar */
+  .user-table thead {
+    display: none;
   }
 
   .user-table tr {
@@ -194,11 +241,20 @@
   }
 }
 
-/* Responsiv styling för filter och knappar */
+/* ===== Responsiv styling för filter och knappar ===== */
 @media (max-width: 768px) {
   .filter-container {
     flex-direction: column;
     align-items: center;
+  }
+
+  .dropdowns-container,
+  .date-filter-container {
+    width: 100%;
+  }
+
+  .dropdowns-container {
+    margin: 0;
   }
 
   .filter-container label,
@@ -220,37 +276,39 @@
     margin: 5px 0;
   }
 
-  .filter-button,
-  .export-button {
+  .buttons-container {
     width: 100%;
+    margin-top: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
   }
 
   .status-filter-container {
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
   }
 
   .status-filter-container select {
     width: 100%;
-    margin: 10px 0;
+    margin: 5px 0;
   }
 }
 
-/* Modal overlay för att mörka bakgrunden */
+/* ===== Modal overlay ===== */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5); /* Halvgenomskinlig bakgrund */
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000; /* Hög z-index för att visa över allt annat */
+  z-index: 1000;
 }
 
-/* Själva modal-rutan */
+/* ===== Modal ===== */
 .modal-content {
   background: #fff;
   padding: 20px;
@@ -260,7 +318,7 @@
   text-align: center;
 }
 
-/* Knappstilar för modalen */
+/* ===== Knappstilar för modalen ===== */
 .button-inactivate,
 .button-danger,
 .button-cancel,
@@ -288,29 +346,24 @@
   border: none;
 }
 
-/* Ny stil för "Aktivera"-knappen */
 .button-activate {
-  background-color: #28a745; /* Grön färg för aktivering */
+  background-color: #28a745;
   color: #fff;
   border: none;
 }
 
-/* === Dropdown för Team-kolumnen === */
+/* ===== Dropdown för Team-kolumnen ===== */
 .team-dropdown {
-  width: 100%;         /* Fyll hela kolumnens bredd */
-  max-width: 200px;    /* Begränsa bredden på större skärmar, kan justeras efter behov */
+  width: 100%;
+  max-width: 200px;
   padding: 8px;
   font-size: 14px;
   border: 1px solid #ddd;
   border-radius: 5px;
   background-color: #fff;
-  box-sizing: border-box; /* Viktigt för korrekt responsivitet */
-  -webkit-appearance: none; /* Tar bort pilstil (Safari/iOS) */
-  -moz-appearance: none;    /* Tar bort pilstil (Firefox) */
-  appearance: none;         /* Tar bort pilstil (Chrome etc) */
+  box-sizing: border-box;
 }
 
-/* På riktigt små skärmar vill vi kanske låta dropdown fylla kolumnen helt */
 @media (max-width: 768px) {
   .team-dropdown {
     max-width: 100%;

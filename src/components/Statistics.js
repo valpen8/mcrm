@@ -1,20 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import {
+  collection,
+  collectionGroup,
+  getDocs,
+  query,
+  orderBy,
+  limit,
+  startAfter,
+  where
+} from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import './styles/Statistics.css';
 import { useAuth } from '../auth';
 
+const pageSize = 10; // antal dokument per "sida"
+
 const Statistics = () => {
-  const [salesData, setSalesData] = useState([]);
+  // Data-states
+  const [salesData, setSalesData] = useState([]); // För salesSpecification
   const [finalReports, setFinalReports] = useState([]);
   const [qualityReportsData, setQualityReportsData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
+
+  // Extra state för totalsumma per organisation
+  const [orgTotals, setOrgTotals] = useState({});
+
+  // Filter och sortering
   const [selectedPeriod, setSelectedPeriod] = useState('');
   const [selectedSalesperson, setSelectedSalesperson] = useState('');
   const [selectedManager, setSelectedManager] = useState('');
   const [salespersons, setSalespersons] = useState([]);
-  const [periods, setPeriods] = useState([]);
-  const [dataSource, setDataSource] = useState('salesSpecification');
+  const [periods, setPeriods] = useState([]); // Unika perioder
+  const [dataSource, setDataSource] = useState('salesSpecification'); // "salesSpecification", "finalReport" eller "kvalité"
   const [managers, setManagers] = useState([]);
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'asc' });
   const [startDate, setStartDate] = useState('');
@@ -23,155 +40,15 @@ const Statistics = () => {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [statusOptions, setStatusOptions] = useState([]);
 
+  // Pagination-states
+  const [lastSalesSpecDoc, setLastSalesSpecDoc] = useState(null);
+  const [lastFinalReportDoc, setLastFinalReportDoc] = useState(null);
+  const [lastQualityReportDoc, setLastQualityReportDoc] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   const { currentUser } = useAuth();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!currentUser) {
-        console.log("Ingen inloggad användare");
-        return;
-      }
-
-      try {
-        const usersQuerySnapshot = await getDocs(collection(db, 'users'));
-        const usersDataArray = usersQuerySnapshot.docs.map(doc => {
-          const userData = doc.data();
-          return { id: doc.id, ...userData };
-        });
-
-        const salesManagers = usersDataArray.filter(user => user.role === 'sales-manager');
-        setManagers(salesManagers);
-
-        const salesSpecificationsArray = usersDataArray.flatMap(userData => {
-          const salesSpecifications = userData.salesSpecifications || {};
-          const extractedSpecifications = Object.entries(salesSpecifications).map(([period, details]) => ({
-            period,
-            totalApproved: details.totalApproved || 0,
-            salesperson: `${userData.firstName} ${userData.lastName}`,
-            salesId: userData.salesId,
-            managerUid: userData.managerUid,
-            date: period,
-            type: 'Sales Specification',
-          }));
-          return extractedSpecifications;
-        });
-
-        const finalReportsQuerySnapshot = await getDocs(collection(db, 'finalReports'));
-        const finalReportsArray = finalReportsQuerySnapshot.docs.flatMap(doc => {
-          const data = doc.data();
-          const reportId = doc.id;
-          return Object.keys(data.salesData || {}).map(salesId => ({
-            ...data.salesData[salesId],
-            date: data.date,
-            reportId: reportId,
-            managerUid: data.managerUid,
-            location: data.location || 'N/A',
-            organisation: data.organisation || 'N/A',
-            type: 'Final Report',
-          }));
-        });
-
-        // Hämta kvalitetsrapporter
-        const qualityReportsSnapshot = await getDocs(collection(db, 'qualityReports'));
-        const qualityReportsArray = qualityReportsSnapshot.docs.flatMap(doc => {
-          const data = doc.data();
-          const reportId = doc.id;
-          const date = data.date;
-          const organisation = data.organisation || 'N/A';
-          const managerUid = data.managerUid || ''; // Se till att managerUid är inkluderad
-          const members = data.members || {};
-          return Object.entries(members).map(([memberId, memberData]) => ({
-            reportId,
-            date,
-            organisation,
-            teamMember: memberData.name || 'N/A',
-            salesId: memberData.salesId || 'N/A',
-            regSales: memberData.regSales || 0,
-            invalidAmount: memberData.invalidAmount || 0,
-            outOfTarget: memberData.outOfTarget || 0,
-            pending: memberData.pending || 0,
-            total: memberData.total || 0,
-            managerUid: managerUid, // Lägg till managerUid här
-            assignedTo: data.assignedTo || [],
-            type: 'Quality Report',
-          }));
-        });
-        setQualityReportsData(qualityReportsArray);
-
-        const periodsSet = new Set(salesSpecificationsArray.map(spec => spec.period));
-        setPeriods([...periodsSet]);
-
-        setSalesData(salesSpecificationsArray);
-        setFinalReports(finalReportsArray);
-
-        const salespersonsSet = new Set(
-          [...salesSpecificationsArray, ...finalReportsArray, ...qualityReportsArray].map(
-            data => data.name || data.salesperson || data.teamMember
-          )
-        );
-        setSalespersons([...salespersonsSet]);
-
-        const statusSet = new Set(finalReportsArray.map(item => item.status).filter(Boolean));
-        setStatusOptions([...statusSet]);
-
-        setFilteredData(salesSpecificationsArray);
-        calculateTotalSales(salesSpecificationsArray);
-      } catch (error) {
-        console.error("Fel vid hämtning av data:", error);
-      }
-    };
-
-    fetchData();
-  }, [currentUser]);
-
-  const handleFilterChange = () => {
-    let filtered;
-    if (dataSource === 'salesSpecification') {
-      filtered = [...salesData];
-    } else if (dataSource === 'finalReport') {
-      filtered = [...finalReports];
-    } else if (dataSource === 'kvalité') {
-      filtered = [...qualityReportsData];
-    }
-
-    if (selectedManager) {
-      if (dataSource === 'kvalité') {
-        // Filtrera baserat på managerUid
-        filtered = filtered.filter(item => item.managerUid === selectedManager);
-      } else {
-        filtered = filtered.filter(item => item.managerUid === selectedManager);
-      }
-    }
-
-    if (selectedSalesperson) {
-      if (dataSource === 'kvalité') {
-        filtered = filtered.filter(item => item.teamMember === selectedSalesperson);
-      } else {
-        filtered = filtered.filter(
-          item => item.name === selectedSalesperson || item.salesperson === selectedSalesperson
-        );
-      }
-    }
-
-    if (selectedPeriod) filtered = filtered.filter(item => item.date === selectedPeriod);
-
-    if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      filtered = filtered.filter(item => {
-        const itemDate = new Date(item.date);
-        return itemDate >= start && itemDate <= end;
-      });
-    }
-
-    if (dataSource === 'finalReport' && selectedStatus) {
-      filtered = filtered.filter(item => item.status === selectedStatus);
-    }
-
-    setFilteredData(sortData(filtered));
-    calculateTotalSales(filtered);
-  };
-
+  // Funktion för att räkna total försäljning (alla poster)
   const calculateTotalSales = (data) => {
     const total = data.reduce((sum, item) => {
       const salesValue = item.totalApproved || item.sales || item.total || 0;
@@ -180,25 +57,7 @@ const Statistics = () => {
     setTotalSales(total);
   };
 
-  const handleResetFilters = () => {
-    setSelectedPeriod('');
-    setSelectedSalesperson('');
-    setSelectedManager('');
-    setStartDate('');
-    setEndDate('');
-    setSelectedStatus('');
-    let resetData;
-    if (dataSource === 'salesSpecification') {
-      resetData = salesData;
-    } else if (dataSource === 'finalReport') {
-      resetData = finalReports;
-    } else if (dataSource === 'kvalité') {
-      resetData = qualityReportsData;
-    }
-    setFilteredData(resetData);
-    calculateTotalSales(resetData);
-  };
-
+  // Funktion för att sortera data
   const sortData = (data) => {
     const sortedData = [...data];
     sortedData.sort((a, b) => {
@@ -211,9 +70,461 @@ const Statistics = () => {
 
   const handleSort = (key) => {
     let direction = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
     setSortConfig({ key, direction });
     setFilteredData(sortData(filteredData));
+  };
+
+  // Klientbaserad filtrering
+  const handleFilterChange = () => {
+    let filtered;
+    if (dataSource === 'salesSpecification') {
+      filtered = [...salesData];
+    } else if (dataSource === 'finalReport') {
+      filtered = [...finalReports];
+    } else if (dataSource === 'kvalité') {
+      filtered = [...qualityReportsData];
+    }
+
+    if (selectedManager) {
+      filtered = filtered.filter(item => item.managerUid === selectedManager);
+      const managerSalespersons = new Set(filtered.map(item => item.salesperson || item.teamMember));
+      setSalespersons([...managerSalespersons]);
+    }
+
+    if (selectedSalesperson) {
+      filtered = filtered.filter(
+        item =>
+          item.name === selectedSalesperson ||
+          item.salesperson === selectedSalesperson ||
+          item.teamMember === selectedSalesperson
+      );
+    }
+
+    if (selectedPeriod) {
+      // För salesSpecification använder vi fältet "period"
+      filtered = filtered.filter(item => item.period === selectedPeriod);
+    }
+
+    if (dataSource === 'finalReport' && selectedStatus) {
+      filtered = filtered.filter(item => item.status === selectedStatus);
+    }
+
+    const sorted = sortData(filtered);
+    setFilteredData(sorted);
+    calculateTotalSales(sorted);
+  };
+
+  const handleResetFilters = () => {
+    setSelectedPeriod('');
+    setSelectedSalesperson('');
+    setSelectedManager('');
+    setSelectedStatus('');
+    let resetData;
+    if (dataSource === 'salesSpecification') {
+      resetData = salesData;
+      setSalespersons([...new Set(salesData.map(item => item.salesperson))]);
+    } else if (dataSource === 'finalReport') {
+      resetData = finalReports;
+      setSalespersons([...new Set(finalReports.map(item => item.salesperson || item.name))]);
+    } else if (dataSource === 'kvalité') {
+      resetData = qualityReportsData;
+      setSalespersons([...new Set(qualityReportsData.map(item => item.teamMember))]);
+    }
+    setFilteredData(resetData);
+    calculateTotalSales(resetData);
+  };
+
+  // useEffect för att beräkna totalsumma per organisation
+  useEffect(() => {
+    const totals = {};
+    // Gruppera posterna i filteredData baserat på organisation (använd 'N/A' om inget finns)
+    filteredData.forEach(item => {
+      const org = item.organisation || 'N/A';
+      const value = parseFloat(item.totalApproved || item.sales || item.total || 0);
+      totals[org] = (totals[org] || 0) + value;
+    });
+    setOrgTotals(totals);
+  }, [filteredData]);
+
+  // Hämta data från Firestore
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!currentUser) {
+        console.log("Ingen inloggad användare");
+        return;
+      }
+      // Återställ pagination vid filterändring
+      setLastSalesSpecDoc(null);
+      setLastFinalReportDoc(null);
+      setLastQualityReportDoc(null);
+
+      try {
+        if (dataSource === 'salesSpecification') {
+          // --- SALES SPECIFICATION ---
+          // Hämta användardata för att mappa in användarinformation
+          const usersSnapshot = await getDocs(collection(db, 'users'));
+          const usersDataArray = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          const usersMap = {};
+          usersDataArray.forEach(user => { usersMap[user.id] = user; });
+
+          // Använd collectionGroup för att hämta alla dokument från subkollektionen "salesSpecifications"
+          // Vi sorterar med orderBy('__name__') då vi antar att dokumentets ID representerar periodens namn
+          let salesSpecsQuery;
+          if (startDate && endDate) {
+            // Om du vill lägga till datumfilter här, säkerställ att dokumenten innehåller rätt fält
+            salesSpecsQuery = query(
+              collectionGroup(db, 'salesSpecifications'),
+              where('date', '>=', startDate),
+              where('date', '<=', endDate),
+              orderBy('date'),
+              limit(pageSize)
+            );
+          } else {
+            salesSpecsQuery = query(
+              collectionGroup(db, 'salesSpecifications'),
+              orderBy('__name__'),
+              limit(pageSize)
+            );
+          }
+          const salesSpecsSnapshot = await getDocs(salesSpecsQuery);
+          const salesSpecificationsArray = [];
+          const periodSet = new Set();
+
+          salesSpecsSnapshot.forEach(specDoc => {
+            const specData = specDoc.data();
+            // Om det finns ett fält "period" i dokumentet, använd det; annars använd dokumentets ID
+            const period = specData.period || specDoc.id;
+            periodSet.add(period);
+            // Hämta användardokumentet (föräldern) via specDoc.ref.parent.parent
+            const parentRef = specDoc.ref.parent.parent;
+            const parentUserId = parentRef ? parentRef.id : null;
+            const userInfo = usersMap[parentUserId] || {};
+            salesSpecificationsArray.push({
+              period,
+              totalApproved: specData.totalApproved || 0,
+              salesperson: `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || 'N/A',
+              salesId: userInfo.salesId || 'N/A',
+              managerUid: userInfo.managerUid || '',
+              // Använd fältet "date" från specData om det finns; annars fallback till period
+              date: specData.date || period,
+              type: 'Sales Specification',
+              organisation: userInfo.organisation || 'N/A'
+            });
+          });
+          setLastSalesSpecDoc(salesSpecsSnapshot.docs[salesSpecsSnapshot.docs.length - 1]);
+          setSalesData(salesSpecificationsArray);
+          setFilteredData(salesSpecificationsArray);
+          setPeriods([...periodSet]);
+          calculateTotalSales(salesSpecificationsArray);
+          // Hämta försäljningschefer från användardata
+          const managersArray = usersDataArray.filter(user => user.role === 'sales-manager');
+          setManagers(managersArray);
+          setSalespersons([...new Set(salesSpecificationsArray.map(item => item.salesperson))]);
+          console.log("Fetched Sales Specifications:", salesSpecificationsArray);
+        } else if (dataSource === 'finalReport') {
+          // --- FINAL REPORT ---
+          let finalReportsQuery =
+            startDate && endDate
+              ? selectedManager
+                ? query(
+                    collection(db, 'finalReports'),
+                    where('managerUid', '==', selectedManager),
+                    where('date', '>=', startDate),
+                    where('date', '<=', endDate),
+                    orderBy('date'),
+                    limit(pageSize)
+                  )
+                : query(
+                    collection(db, 'finalReports'),
+                    where('date', '>=', startDate),
+                    where('date', '<=', endDate),
+                    orderBy('date'),
+                    limit(pageSize)
+                  )
+              : selectedManager
+              ? query(
+                  collection(db, 'finalReports'),
+                  where('managerUid', '==', selectedManager),
+                  orderBy('date'),
+                  limit(pageSize)
+                )
+              : query(
+                  collection(db, 'finalReports'),
+                  orderBy('date'),
+                  limit(pageSize)
+                );
+          const finalReportsSnapshot = await getDocs(finalReportsQuery);
+          const finalReportsArray = finalReportsSnapshot.docs.flatMap(doc => {
+            const data = doc.data();
+            const reportId = doc.id;
+            return Object.keys(data.salesData || {}).map(salesId => ({
+              ...data.salesData[salesId],
+              date: data.date,
+              reportId,
+              managerUid: data.managerUid,
+              location: data.location || 'N/A',
+              organisation: data.organisation || 'N/A',
+              type: 'Final Report'
+            }));
+          });
+          setLastFinalReportDoc(finalReportsSnapshot.docs[finalReportsSnapshot.docs.length - 1]);
+          setFinalReports(finalReportsArray);
+          setFilteredData(finalReportsArray);
+          calculateTotalSales(finalReportsArray);
+          setPeriods([...new Set(finalReportsArray.map(item => item.date))]);
+          // Hämta försäljningschefer
+          const usersSnapshot = await getDocs(collection(db, 'users'));
+          const usersDataArray = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setManagers(usersDataArray.filter(user => user.role === 'sales-manager'));
+          setSalespersons([...new Set(finalReportsArray.map(item => item.salesperson || item.name))]);
+          // Extrahera unika statusvärden för dropdownen "Välj Status"
+          const statusSet = new Set(finalReportsArray.map(item => item.status));
+          setStatusOptions([...statusSet]);
+          console.log("Fetched Final Reports:", finalReportsArray);
+        } else if (dataSource === 'kvalité') {
+          // --- QUALITY REPORTS ---
+          let qualityReportsQuery =
+            startDate && endDate
+              ? selectedManager
+                ? query(
+                    collection(db, 'qualityReports'),
+                    where('managerUid', '==', selectedManager),
+                    where('date', '>=', startDate),
+                    where('date', '<=', endDate),
+                    orderBy('date'),
+                    limit(pageSize)
+                  )
+                : query(
+                    collection(db, 'qualityReports'),
+                    where('date', '>=', startDate),
+                    where('date', '<=', endDate),
+                    orderBy('date'),
+                    limit(pageSize)
+                  )
+              : selectedManager
+              ? query(
+                  collection(db, 'qualityReports'),
+                  where('managerUid', '==', selectedManager),
+                  orderBy('date'),
+                  limit(pageSize)
+                )
+              : query(
+                  collection(db, 'qualityReports'),
+                  orderBy('date'),
+                  limit(pageSize)
+                );
+          const qualityReportsSnapshot = await getDocs(qualityReportsQuery);
+          const qualityReportsArray = qualityReportsSnapshot.docs.flatMap(doc => {
+            const data = doc.data();
+            const reportId = doc.id;
+            return Object.entries(data.members || {}).map(([memberId, memberData]) => ({
+              reportId,
+              date: data.date,
+              organisation: data.organisation || 'N/A',
+              managerUid: data.managerUid || '',
+              teamMember: memberData.name || 'N/A',
+              salesId: memberData.salesId || 'N/A',
+              regSales: memberData.regSales || 0,
+              invalidAmount: memberData.invalidAmount || 0,
+              outOfTarget: memberData.outOfTarget || 0,
+              pending: memberData.pending || 0,
+              total: memberData.total || 0,
+              assignedTo: data.assignedTo || [],
+              type: 'Quality Report'
+            }));
+          });
+          setLastQualityReportDoc(qualityReportsSnapshot.docs[qualityReportsSnapshot.docs.length - 1]);
+          setQualityReportsData(qualityReportsArray);
+          setFilteredData(qualityReportsArray);
+          calculateTotalSales(qualityReportsArray);
+          setPeriods([...new Set(qualityReportsArray.map(item => item.date))]);
+          // Hämta försäljningschefer
+          const usersSnapshot = await getDocs(collection(db, 'users'));
+          const usersDataArray = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setManagers(usersDataArray.filter(user => user.role === 'sales-manager'));
+          setSalespersons([...new Set(qualityReportsArray.map(item => item.teamMember))]);
+          console.log("Fetched Quality Reports:", qualityReportsArray);
+        }
+      } catch (error) {
+        console.error("Fel vid hämtning av data:", error);
+      }
+    };
+
+    // Lägg till dependency: currentUser, dataSource, startDate, endDate, selectedManager
+    fetchData();
+  }, [currentUser, dataSource, startDate, endDate, selectedManager]);
+
+  // Funktionen loadMoreData – behåll din befintliga logik
+  const loadMoreData = async () => {
+    if (loadingMore) return;
+    setLoadingMore(true);
+    try {
+      if (dataSource === 'salesSpecification' && lastSalesSpecDoc) {
+        const nextQuery = query(
+          collectionGroup(db, 'salesSpecifications'),
+          orderBy('__name__'),
+          startAfter(lastSalesSpecDoc),
+          limit(pageSize)
+        );
+        const nextSnapshot = await getDocs(nextQuery);
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        const usersDataArray = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const usersMap = {};
+        usersDataArray.forEach(user => { usersMap[user.id] = user; });
+        const nextData = [];
+        const newPeriodSet = new Set();
+        nextSnapshot.forEach(specDoc => {
+          const specData = specDoc.data();
+          const period = specData.period || specDoc.id;
+          newPeriodSet.add(period);
+          const parentRef = specDoc.ref.parent.parent;
+          const parentUserId = parentRef ? parentRef.id : null;
+          const userInfo = usersMap[parentUserId] || {};
+          nextData.push({
+            period,
+            totalApproved: specData.totalApproved || 0,
+            salesperson: `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || 'N/A',
+            salesId: userInfo.salesId || 'N/A',
+            managerUid: userInfo.managerUid || '',
+            date: specData.date || period,
+            type: 'Sales Specification'
+          });
+        });
+        setLastSalesSpecDoc(nextSnapshot.docs[nextSnapshot.docs.length - 1]);
+        setSalesData(prev => [...prev, ...nextData]);
+        setFilteredData(prev => [...prev, ...nextData]);
+        setPeriods(prev => [...new Set([...prev, ...newPeriodSet])]);
+        calculateTotalSales([...salesData, ...nextData]);
+        setSalespersons(prev => [...new Set([...prev, ...nextData.map(item => item.salesperson)])]);
+      } else if (dataSource === 'finalReport' && lastFinalReportDoc) {
+        let nextQuery;
+        if (startDate && endDate) {
+          nextQuery = selectedManager
+            ? query(
+                collection(db, 'finalReports'),
+                where('managerUid', '==', selectedManager),
+                where('date', '>=', startDate),
+                where('date', '<=', endDate),
+                orderBy('date'),
+                startAfter(lastFinalReportDoc),
+                limit(pageSize)
+              )
+            : query(
+                collection(db, 'finalReports'),
+                where('date', '>=', startDate),
+                where('date', '<=', endDate),
+                orderBy('date'),
+                startAfter(lastFinalReportDoc),
+                limit(pageSize)
+              );
+        } else {
+          nextQuery = selectedManager
+            ? query(
+                collection(db, 'finalReports'),
+                where('managerUid', '==', selectedManager),
+                orderBy('date'),
+                startAfter(lastFinalReportDoc),
+                limit(pageSize)
+              )
+            : query(
+                collection(db, 'finalReports'),
+                orderBy('date'),
+                startAfter(lastFinalReportDoc),
+                limit(pageSize)
+              );
+        }
+        const nextSnapshot = await getDocs(nextQuery);
+        const nextData = nextSnapshot.docs.flatMap(doc => {
+          const data = doc.data();
+          const reportId = doc.id;
+          return Object.keys(data.salesData || {}).map(salesId => ({
+            ...data.salesData[salesId],
+            date: data.date,
+            reportId,
+            managerUid: data.managerUid,
+            location: data.location || 'N/A',
+            organisation: data.organisation || 'N/A',
+            type: 'Final Report'
+          }));
+        });
+        setLastFinalReportDoc(nextSnapshot.docs[nextSnapshot.docs.length - 1]);
+        setFinalReports(prev => [...prev, ...nextData]);
+        setFilteredData(prev => [...prev, ...nextData]);
+        setPeriods(prev => [...new Set([...prev, ...nextData.map(item => item.date)])]);
+        calculateTotalSales([...finalReports, ...nextData]);
+        setSalespersons(prev => [...new Set([...prev, ...nextData.map(item => item.salesperson || item.name)])]);
+      } else if (dataSource === 'kvalité' && lastQualityReportDoc) {
+        let nextQuery;
+        if (startDate && endDate) {
+          nextQuery = selectedManager
+            ? query(
+                collection(db, 'qualityReports'),
+                where('managerUid', '==', selectedManager),
+                where('date', '>=', startDate),
+                where('date', '<=', endDate),
+                orderBy('date'),
+                startAfter(lastQualityReportDoc),
+                limit(pageSize)
+              )
+            : query(
+                collection(db, 'qualityReports'),
+                where('date', '>=', startDate),
+                where('date', '<=', endDate),
+                orderBy('date'),
+                startAfter(lastQualityReportDoc),
+                limit(pageSize)
+              );
+        } else {
+          nextQuery = selectedManager
+            ? query(
+                collection(db, 'qualityReports'),
+                where('managerUid', '==', selectedManager),
+                orderBy('date'),
+                startAfter(lastQualityReportDoc),
+                limit(pageSize)
+              )
+            : query(
+                collection(db, 'qualityReports'),
+                orderBy('date'),
+                startAfter(lastQualityReportDoc),
+                limit(pageSize)
+              );
+        }
+        const nextSnapshot = await getDocs(nextQuery);
+        const nextData = nextSnapshot.docs.flatMap(doc => {
+          const data = doc.data();
+          const reportId = doc.id;
+          return Object.entries(data.members || {}).map(([memberId, memberData]) => ({
+            reportId,
+            date: data.date,
+            organisation: data.organisation || 'N/A',
+            managerUid: data.managerUid || '',
+            teamMember: memberData.name || 'N/A',
+            salesId: memberData.salesId || 'N/A',
+            regSales: memberData.regSales || 0,
+            invalidAmount: memberData.invalidAmount || 0,
+            outOfTarget: memberData.outOfTarget || 0,
+            pending: memberData.pending || 0,
+            total: memberData.total || 0,
+            assignedTo: data.assignedTo || [],
+            type: 'Quality Report'
+          }));
+        });
+        setLastQualityReportDoc(nextSnapshot.docs[nextSnapshot.docs.length - 1]);
+        setQualityReportsData(prev => [...prev, ...nextData]);
+        setFilteredData(prev => [...prev, ...nextData]);
+        setPeriods(prev => [...new Set([...prev, ...nextData.map(item => item.date)])]);
+        calculateTotalSales([...qualityReportsData, ...nextData]);
+        setSalespersons(prev => [...new Set([...prev, ...nextData.map(item => item.teamMember)])]);
+      }
+    } catch (error) {
+      console.error("Fel vid paginerad hämtning:", error);
+    } finally {
+      setLoadingMore(false);
+    }
   };
 
   return (
@@ -225,10 +536,14 @@ const Statistics = () => {
           <tr>
             <td><label htmlFor="data-source-select">Välj Datakälla:</label></td>
             <td>
-              <select id="data-source-select" value={dataSource} onChange={(e) => {
-                setDataSource(e.target.value);
-                handleResetFilters(); // Återställ filter när datakällan ändras
-              }}>
+              <select
+                id="data-source-select"
+                value={dataSource}
+                onChange={(e) => {
+                  setDataSource(e.target.value);
+                  handleResetFilters();
+                }}
+              >
                 <option value="salesSpecification">Säljspecifikation</option>
                 <option value="finalReport">Slutrapport</option>
                 <option value="kvalité">Kvalité</option>
@@ -236,36 +551,68 @@ const Statistics = () => {
             </td>
             <td><label htmlFor="manager-select">Välj Försäljningschef:</label></td>
             <td>
-              <select id="manager-select" value={selectedManager} onChange={(e) => setSelectedManager(e.target.value)}>
+              <select
+                id="manager-select"
+                value={selectedManager}
+                onChange={(e) => setSelectedManager(e.target.value)}
+              >
                 <option value="">Alla chefer</option>
                 {managers.map(manager => (
-                  <option key={manager.id} value={manager.id}>{manager.firstName} {manager.lastName}</option>
+                  <option key={manager.id} value={manager.id}>
+                    {manager.firstName} {manager.lastName}
+                  </option>
                 ))}
               </select>
             </td>
           </tr>
           <tr>
             <td><label htmlFor="start-date">Startdatum:</label></td>
-            <td><input type="date" id="start-date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></td>
+            <td>
+              <input
+                type="date"
+                id="start-date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </td>
             <td><label htmlFor="end-date">Slutdatum:</label></td>
-            <td><input type="date" id="end-date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /></td>
+            <td>
+              <input
+                type="date"
+                id="end-date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </td>
           </tr>
           <tr>
             <td><label htmlFor="period-select">Välj Period:</label></td>
             <td>
-              <select id="period-select" value={selectedPeriod} onChange={(e) => setSelectedPeriod(e.target.value)}>
+              <select
+                id="period-select"
+                value={selectedPeriod}
+                onChange={(e) => setSelectedPeriod(e.target.value)}
+              >
                 <option value="">Alla perioder</option>
                 {periods.map(period => (
-                  <option key={period} value={period}>{period}</option>
+                  <option key={period} value={period}>
+                    {period}
+                  </option>
                 ))}
               </select>
             </td>
             <td><label htmlFor="salesperson-select">Välj Säljare:</label></td>
             <td>
-              <select id="salesperson-select" value={selectedSalesperson} onChange={(e) => setSelectedSalesperson(e.target.value)}>
+              <select
+                id="salesperson-select"
+                value={selectedSalesperson}
+                onChange={(e) => setSelectedSalesperson(e.target.value)}
+              >
                 <option value="">Alla</option>
-                {salespersons.map(salesperson => (
-                  <option key={salesperson} value={salesperson}>{salesperson}</option>
+                {salespersons.map((salesperson, index) => (
+                  <option key={index} value={salesperson}>
+                    {salesperson}
+                  </option>
                 ))}
               </select>
             </td>
@@ -274,15 +621,20 @@ const Statistics = () => {
             <tr>
               <td><label htmlFor="status-select">Välj Status:</label></td>
               <td>
-                <select id="status-select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
+                <select
+                  id="status-select"
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                >
                   <option value="">Alla</option>
                   {statusOptions.map(status => (
-                    <option key={status} value={status}>{status}</option>
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
                   ))}
                 </select>
               </td>
-              <td></td>
-              <td></td>
+              <td colSpan="2"></td>
             </tr>
           )}
           <tr>
@@ -294,10 +646,37 @@ const Statistics = () => {
         </tbody>
       </table>
 
+      {/* Totalt Försäljning (globalt) */}
       <div className="total-sales">
         <h3>Totalt Försäljning: {totalSales}</h3>
       </div>
 
+      {/* Totalt per Organisation */}
+      <div className="org-totals">
+        <h3>Totalt per Organisation:</h3>
+        {Object.keys(orgTotals).length === 0 ? (
+          <p>Ingen data tillgänglig</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Organisation</th>
+                <th>Försäljning</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(orgTotals).map(([org, total]) => (
+                <tr key={org}>
+                  <td>{org}</td>
+                  <td>{total}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Resultattabell */}
       <div className="table-container">
         <table className="statistics-table">
           <thead>
@@ -319,7 +698,7 @@ const Statistics = () => {
               ) : (
                 <>
                   <th>Säljare</th>
-                  <th>{dataSource === 'finalReport' ? 'Sjuk Ledig' : 'Period'}</th>
+                  <th>{dataSource === 'finalReport' ? 'Status' : 'Period'}</th>
                   <th onClick={() => handleSort('date')}>
                     Datum {sortConfig.key === 'date' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                   </th>
@@ -333,31 +712,35 @@ const Statistics = () => {
           <tbody>
             {filteredData.length === 0 ? (
               <tr>
-                <td colSpan={dataSource === 'kvalité' ? 9 : dataSource === 'finalReport' ? 6 : 5}>Ingen data tillgänglig</td>
+                <td colSpan={dataSource === 'kvalité' ? 9 : dataSource === 'finalReport' ? 6 : 5}>
+                  Ingen data tillgänglig
+                </td>
               </tr>
             ) : (
               filteredData.map((item, index) => (
                 <tr key={index}>
                   {dataSource === 'kvalité' ? (
                     <>
-                      <td>{item.date || 'N/A'}</td>
-                      <td>{item.organisation || 'N/A'}</td>
-                      <td>{item.teamMember || 'N/A'}</td>
-                      <td>{item.salesId || 'N/A'}</td>
-                      <td>{item.regSales || 0}</td>
-                      <td>{item.invalidAmount || 0}</td>
-                      <td>{item.outOfTarget || 0}</td>
-                      <td>{item.pending || 0}</td>
-                      <td>{item.total || 0}</td>
+                      <td data-label="Datum">{item.date || 'N/A'}</td>
+                      <td data-label="Organisation">{item.organisation || 'N/A'}</td>
+                      <td data-label="Teammedlem">{item.teamMember || 'N/A'}</td>
+                      <td data-label="Sales ID">{item.salesId || 'N/A'}</td>
+                      <td data-label="Reg Sälj">{item.regSales || 0}</td>
+                      <td data-label="Ogiltigt Belopp">{item.invalidAmount || 0}</td>
+                      <td data-label="Utanför målgrupp">{item.outOfTarget || 0}</td>
+                      <td data-label="Pending">{item.pending || 0}</td>
+                      <td data-label="Total">{item.total || 0}</td>
                     </>
                   ) : (
                     <>
-                      <td>{item.name || item.salesperson || 'N/A'}</td>
-                      <td>{dataSource === 'finalReport' ? item.status || 'N/A' : item.period || 'N/A'}</td>
-                      <td>{item.date || 'N/A'}</td>
-                      {dataSource === 'finalReport' && <td>{item.organisation || 'N/A'}</td>}
-                      <td>{item.totalApproved || item.sales || 'N/A'}</td>
-                      <td>{item.type || 'Sales Specification'}</td>
+                      <td data-label="Säljare">{item.name || item.salesperson || 'N/A'}</td>
+                      <td data-label={dataSource === 'finalReport' ? "Status" : "Period"}>
+                        {dataSource === 'finalReport' ? item.status || 'N/A' : item.period || 'N/A'}
+                      </td>
+                      <td data-label="Datum">{item.date || 'N/A'}</td>
+                      {dataSource === 'finalReport' && <td data-label="Organisation">{item.organisation || 'N/A'}</td>}
+                      <td data-label="Försäljning">{item.totalApproved || item.sales || 'N/A'}</td>
+                      <td data-label="Typ">{item.type || (dataSource === 'salesSpecification' ? 'Sales Specification' : '')}</td>
                     </>
                   )}
                 </tr>
@@ -365,6 +748,17 @@ const Statistics = () => {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div style={{ textAlign: 'center', marginTop: '20px' }}>
+        {((dataSource === 'salesSpecification' && lastSalesSpecDoc) ||
+          (dataSource === 'finalReport' && lastFinalReportDoc) ||
+          (dataSource === 'kvalité' && lastQualityReportDoc)
+        ) && (
+          <button className="load-more-button" onClick={loadMoreData} disabled={loadingMore}>
+            {loadingMore ? 'Laddar...' : 'Load More'}
+          </button>
+        )}
       </div>
     </div>
   );

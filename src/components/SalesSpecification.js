@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import './styles/SalesSpecification.css';
 
@@ -29,7 +29,6 @@ const SalesSpecification = () => {
       'Januari', 'Februari', 'Mars', 'April', 'Maj', 'Juni',
       'Juli', 'Augusti', 'September', 'Oktober', 'November', 'December'
     ];
-
     const generatedPeriods = [];
     for (let i = 0; i < months.length; i++) {
       const startMonth = months[i];
@@ -52,6 +51,9 @@ const SalesSpecification = () => {
       // Hämta tillgängliga år baserat på befintliga specifikationer
       const years = new Set();
       querySnapshot.docs.forEach((doc) => {
+        // OBS! I den gamla koden hämtades specifikationerna från ett fält,
+        // men i den nya strukturen sparas de i en subcollection, så detta kanske
+        // inte längre returnerar några år. Detta kan du eventuellt behöva ändra.
         const specifications = doc.data().salesSpecifications || {};
         Object.keys(specifications).forEach((period) => {
           const year = period.split(' ').pop(); // Extrahera år från perioden
@@ -76,7 +78,6 @@ const SalesSpecification = () => {
         const invalid = parseInt(updatedFormData.invalid) || 0;
         const incorrect = parseInt(updatedFormData.incorrect) || 0;
         const withdrawal = parseInt(updatedFormData.withdrawal) || 0;
-
         const approved = totalProcessed - (missingCoverage + invalid + incorrect + withdrawal);
         updatedFormData.approved = approved >= 0 ? approved : 0;
       }
@@ -85,7 +86,6 @@ const SalesSpecification = () => {
       if (['approved', 'previousAdjustment'].includes(name)) {
         const approved = parseInt(updatedFormData.approved) || 0;
         const previousAdjustment = parseInt(updatedFormData.previousAdjustment) || 0;
-
         const totalApproved = approved + previousAdjustment;
         updatedFormData.totalApproved = totalApproved >= 0 ? totalApproved : 0;
       }
@@ -94,7 +94,6 @@ const SalesSpecification = () => {
       if (['totalApproved', 'commission'].includes(name)) {
         const totalApproved = parseInt(updatedFormData.totalApproved) || 0;
         const commission = parseFloat(updatedFormData.commission) || 0;
-
         const salary = totalApproved * commission;
         updatedFormData.salary = salary >= 0 ? salary : 0;
       }
@@ -107,17 +106,23 @@ const SalesSpecification = () => {
     e.preventDefault();
     if (selectedEmployee && selectedPeriod) {
       try {
-        const userRef = doc(db, 'users', selectedEmployee);
-        const userDoc = await getDoc(userRef);
+        // Kombinera period och år, t.ex. "18 April - 17 Maj 2023"
+        const periodWithYear = `${selectedPeriod} ${selectedYear}`;
+        console.log("Selected Employee ID:", selectedEmployee);
+        console.log("Period With Year:", periodWithYear);
+        console.log("Form Data:", formData);
 
-        const existingSpecifications = userDoc.data().salesSpecifications || {};
-        const periodWithYear = `${selectedPeriod} ${selectedYear}`; // Lägger till år till perioden
-        existingSpecifications[periodWithYear] = formData;
+        // Skapa en referens till subcollectionen "salesSpecifications" under användardokumentet
+        const salesSpecRef = doc(db, 'users', selectedEmployee, 'salesSpecifications', periodWithYear);
+        console.log("Dokumentvägen som skapas:", salesSpecRef.path);
 
-        await updateDoc(userRef, { salesSpecifications: existingSpecifications });
+        // Spara formData i dokumentet i subcollectionen.
+        // Om subcollectionen inte finns skapas den automatiskt vid det första anropet.
+        await setDoc(salesSpecRef, formData);
+        console.log("Säljspecifikationen sparades framgångsrikt!");
         alert('Säljspecifikation sparad!');
       } catch (error) {
-        console.error('Fel vid uppdatering av säljspecifikation:', error);
+        console.error("Fel vid sparning av säljspecifikation:", error);
         alert('Kunde inte spara säljspecifikationen.');
       }
     } else {

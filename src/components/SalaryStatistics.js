@@ -1,65 +1,93 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { 
+  collection, 
+  collectionGroup, 
+  getDocs, 
+  query, 
+  where 
+} from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import './styles/SalaryStatistics.css';
 import * as XLSX from 'xlsx'; // Importera xlsx-biblioteket
+import { useAuth } from '../auth';
 
 const SalaryStatistics = () => {
   const [users, setUsers] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState('');
-  const [periods, setPeriods] = useState([]); // Håller löneperioder
+  const [periods, setPeriods] = useState([]); // Håller unika löneperioder
   const [totalSalary, setTotalSalary] = useState(0); // Total summa för den valda perioden
 
-  // Hämta löneperioder från Firestore baserat på salesSpecifications
+  // Hämta löneperioder från subkollektionen salesSpecifications under varje användare
   const fetchPeriods = async () => {
     try {
       const usersCollection = collection(db, 'users');
-      const querySnapshot = await getDocs(usersCollection);
-
-      const uniquePeriods = new Set();
-      querySnapshot.docs.forEach((doc) => {
-        const userData = doc.data();
-        if (userData.salesSpecifications) {
-          Object.keys(userData.salesSpecifications).forEach((period) => {
-            uniquePeriods.add(period);
-          });
-        }
+      const usersSnapshot = await getDocs(usersCollection);
+      
+      const periodSet = new Set();
+      // För varje användare hämtar vi subkollektionen "salesSpecifications"
+      const periodPromises = usersSnapshot.docs.map(async (userDoc) => {
+        const salesSpecsCollection = collection(userDoc.ref, 'salesSpecifications');
+        const salesSpecsSnapshot = await getDocs(salesSpecsCollection);
+        salesSpecsSnapshot.forEach((specDoc) => {
+          // Eftersom det inte finns ett specifikt fält "period" använder vi dokumentets id
+          periodSet.add(specDoc.id);
+        });
       });
+      await Promise.all(periodPromises);
 
-      const periodList = Array.from(uniquePeriods).map((period) => ({
+      const periodList = Array.from(periodSet).map((period) => ({
         id: period,
         label: period,
       }));
-
       setPeriods(periodList);
     } catch (error) {
       console.error('Fel vid hämtning av löneperioder:', error);
     }
   };
 
-  // Hämta användare baserat på vald löneperiod och beräkna total summa
+  // Hämta användare (och löneinformation) för den valda perioden
   const fetchUsers = async () => {
-    if (selectedPeriod) {
-      try {
-        const q = query(collection(db, 'users'), where(`salesSpecifications.${selectedPeriod}`, '!=', null));
-        const querySnapshot = await getDocs(q);
-        const usersData = querySnapshot.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
-        setUsers(usersData);
+    if (!selectedPeriod) return;
+    try {
+      // Hämta alla användardokument för att kunna mappa in användarinformation
+      const usersCollection = collection(db, 'users');
+      const usersSnapshot = await getDocs(usersCollection);
+      const usersMap = {};
+      usersSnapshot.docs.forEach((doc) => {
+        usersMap[doc.id] = { id: doc.id, ...doc.data() };
+      });
 
-        const total = usersData.reduce((sum, user) => {
-          return sum + (user.salesSpecifications[selectedPeriod]?.salary || 0);
-        }, 0);
-
-        setTotalSalary(total);
-      } catch (error) {
-        console.error('Fel vid hämtning av användardata:', error);
-      }
+      // Hämta alla dokument från subkollektionen salesSpecifications (utan att filtrera i queryn)
+      const specsQuery = query(collectionGroup(db, 'salesSpecifications'));
+      const specsSnapshot = await getDocs(specsQuery);
+      
+      // Filtrera lokalt: välj endast de dokument vars id matchar den valda perioden
+      const filteredSpecs = specsSnapshot.docs.filter(
+        (specDoc) => specDoc.id === selectedPeriod
+      );
+      
+      const usersList = [];
+      let total = 0;
+      filteredSpecs.forEach((specDoc) => {
+        const specData = specDoc.data();
+        total += specData.salary || 0;
+        // Hämta användardokumentet (föräldern) från subkollektionen
+        const parentRef = specDoc.ref.parent.parent;
+        const parentId = parentRef ? parentRef.id : null;
+        const userData = usersMap[parentId] || {};
+        // Kombinera användardata med löneinformationen från detta salesSpecifications‑dokument
+        usersList.push({
+          ...userData,
+          salesSpecifications: { [selectedPeriod]: specData },
+        });
+      });
+      
+      setUsers(usersList);
+      setTotalSalary(total);
+    } catch (error) {
+      console.error('Fel vid hämtning av användardata:', error);
     }
   };
-
-  useEffect(() => {
-    fetchPeriods(); // Hämta löneperioder vid komponentens laddning
-  }, []);
 
   // Hantera export av tabellen till en Excel-fil
   const handleExport = () => {
@@ -78,17 +106,15 @@ const SalaryStatistics = () => {
       'Sista arbetsdag': user.sistaArbetsdag || 'N/A',
       'Lön för perioden': user.salesSpecifications[selectedPeriod]?.salary || 'N/A',
     }));
-
-    // Skapa ett nytt arbetsblad från datan
     const ws = XLSX.utils.json_to_sheet(data);
-
-    // Skapa en ny arbetsbok och lägg till arbetsbladet
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Lönestatistik');
-
-    // Spara Excel-filen och ladda ner den
     XLSX.writeFile(wb, `Lönestatistik_${selectedPeriod}.xlsx`);
   };
+
+  useEffect(() => {
+    fetchPeriods(); // Hämta löneperioder när komponenten laddas
+  }, []);
 
   return (
     <div className="salary-statistics-container">
@@ -96,7 +122,9 @@ const SalaryStatistics = () => {
 
       {/* Visning av total lön för perioden */}
       <div className="total-salary-container">
-        <h3>Total lön för perioden: <span className="total-salary">{totalSalary} SEK</span></h3>
+        <h3>
+          Total lön för perioden: <span className="total-salary">{totalSalary} SEK</span>
+        </h3>
       </div>
 
       {/* Filter för att välja löneperiod */}
@@ -114,9 +142,12 @@ const SalaryStatistics = () => {
             </option>
           ))}
         </select>
-        <button onClick={fetchUsers} className="fetch-button">Visa Lönestatistik</button>
-        {/* Ny knapp för att exportera till Excel */}
-        <button onClick={handleExport} className="export-button">Exportera till Excel</button>
+        <button onClick={fetchUsers} className="fetch-button">
+          Visa Lönestatistik
+        </button>
+        <button onClick={handleExport} className="export-button">
+          Exportera till Excel
+        </button>
       </div>
 
       {/* Tabellens container för att hantera responsivitet */}
@@ -155,7 +186,9 @@ const SalaryStatistics = () => {
                   <td data-label="Telefon">{user.telefon}</td>
                   <td data-label="Startdatum">{user.startDatum}</td>
                   <td data-label="Sista arbetsdag">{user.sistaArbetsdag || 'N/A'}</td>
-                  <td data-label="Lön för perioden">{user.salesSpecifications[selectedPeriod]?.salary || 'N/A'}</td>
+                  <td data-label="Lön för perioden">
+                    {user.salesSpecifications[selectedPeriod]?.salary || 'N/A'}
+                  </td>
                 </tr>
               ))
             ) : (

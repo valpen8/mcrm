@@ -21,7 +21,7 @@ const ManageUsers = () => {
     const fetchUsersAndManagers = async () => {
       const querySnapshot = await getDocs(collection(db, 'users'));
       const usersData = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-      
+
       setUsers(usersData);
       setFilteredUsers(usersData);
 
@@ -43,7 +43,7 @@ const ManageUsers = () => {
         Epost: user.email,
         Roll: user.role,
         'Sälj ID': user.salesId || 'N/A',
-        'Startdatum': user.startDatum || 'N/A',
+        Startdatum: user.startDatum || 'N/A',
         'Sista arbetsdag': user.sistaArbetsdag || 'N/A'
       }))
     );
@@ -68,7 +68,8 @@ const ManageUsers = () => {
         (statusFilter === 'active' && !user.sistaArbetsdag) ||
         (statusFilter === 'inactive' && user.sistaArbetsdag);
 
-      const isDateMatch = (!start || !end) ||
+      const isDateMatch =
+        (!start || !end) ||
         (!userEndDate || (userEndDate >= start && userEndDate <= end));
 
       const isManagerMatch =
@@ -79,6 +80,18 @@ const ManageUsers = () => {
     });
 
     setFilteredUsers(filtered);
+  };
+
+  /**
+   * Återställer alla filter till standardvärden och visar alla användare.
+   */
+  const handleResetFilters = () => {
+    setSelectedSalesManager('');
+    setStartDate('');
+    setEndDate('');
+    setStatusFilter('all');
+    // Visa alla användare
+    setFilteredUsers(users);
   };
 
   /**
@@ -167,35 +180,41 @@ const ManageUsers = () => {
   return (
     <div className="manage-users-container">
       <h1>Hantera Användare</h1>
-      
-      <div className="filter-container">
-        <label htmlFor="sales-manager-select">Välj Försäljningschef:</label>
-        <select
-          id="sales-manager-select"
-          value={selectedSalesManager}
-          onChange={(e) => setSelectedSalesManager(e.target.value)}
-        >
-          <option value="">Alla</option>
-          {salesManagers.map(manager => (
-            <option key={manager.id} value={manager.id}>
-              {manager.firstName} {manager.lastName}
-            </option>
-          ))}
-        </select>
 
-        <div className="status-filter-container">
-          <label htmlFor="status-filter">Status:</label>
+      {/* === FILTRERINGEN === */}
+      <div className="filter-container">
+
+        {/* 1) Dropdowns till vänster */}
+        <div className="dropdowns-container">
+          <label htmlFor="sales-manager-select">Välj Försäljningschef:</label>
           <select
-            id="status-filter"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            id="sales-manager-select"
+            value={selectedSalesManager}
+            onChange={(e) => setSelectedSalesManager(e.target.value)}
           >
-            <option value="all">Alla</option>
-            <option value="active">Aktiva</option>
-            <option value="inactive">Avslutade</option>
+            <option value="">Alla</option>
+            {salesManagers.map(manager => (
+              <option key={manager.id} value={manager.id}>
+                {manager.firstName} {manager.lastName}
+              </option>
+            ))}
           </select>
+
+          <div className="status-filter-container">
+            <label htmlFor="status-filter">Status:</label>
+            <select
+              id="status-filter"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">Alla</option>
+              <option value="active">Aktiva</option>
+              <option value="inactive">Avslutade</option>
+            </select>
+          </div>
         </div>
 
+        {/* 2) Datumfält, kan ligga i mitten / eller var du vill */}
         <div className="date-filter-container">
           <label>Från:</label>
           <input
@@ -211,14 +230,21 @@ const ManageUsers = () => {
           />
         </div>
 
-        <button className="filter-button" onClick={handleFilter}>
-          Filtrera
-        </button>
-        <button className="export-button" onClick={exportToExcel}>
-          Exportera
-        </button>
+        {/* 3) Knapparna */}
+        <div className="buttons-container">
+          <button className="filter-button" onClick={handleFilter}>
+            Filtrera
+          </button>
+          <button className="filter-button" onClick={handleResetFilters}>
+            Nollställ
+          </button>
+          <button className="export-button" onClick={exportToExcel}>
+            Exportera
+          </button>
+        </div>
       </div>
 
+      {/* === TABELLEN === */}
       <div className="user-table-container">
         <table className="user-table">
           <thead>
@@ -227,7 +253,6 @@ const ManageUsers = () => {
               <th>E-post</th>
               <th>Roll</th>
               <th>Sälj ID</th>
-              {/* Ny kolumn för Team (dropdown) */}
               <th>Team</th>
               <th>Startdatum</th>
               <th>Sista arbetsdag</th>
@@ -238,17 +263,15 @@ const ManageUsers = () => {
             {filteredUsers.map(user => {
               return (
                 <tr key={user.id}>
-                  <td>
+                  <td data-label="Namn">
                     {user.firstName} {user.lastName}
                   </td>
-                  <td>{user.email}</td>
-                  <td>{user.role}</td>
-                  <td>{user.salesId || 'N/A'}</td>
-
-                  {/* Dropdown där användaren kan byta manager/team */}
-                  <td>
+                  <td data-label="E-post">{user.email}</td>
+                  <td data-label="Roll">{user.role}</td>
+                  <td data-label="Sälj ID">{user.salesId || 'N/A'}</td>
+                  <td data-label="Team">
                     <select
-                    className="team-dropdown"
+                      className="team-dropdown"
                       value={user.managerUid || ''} // tom sträng om ingen manager
                       onChange={(e) => handleManagerChange(user.id, e.target.value)}
                     >
@@ -260,10 +283,9 @@ const ManageUsers = () => {
                       ))}
                     </select>
                   </td>
-
-                  <td>{user.startDatum || 'N/A'}</td>
-                  <td>{user.sistaArbetsdag || 'N/A'}</td>
-                  <td>
+                  <td data-label="Startdatum">{user.startDatum || 'N/A'}</td>
+                  <td data-label="Sista arbetsdag">{user.sistaArbetsdag || 'N/A'}</td>
+                  <td data-label="Åtgärder">
                     <button
                       className="button-profile"
                       onClick={() => handleViewProfile(user.id)}
@@ -284,7 +306,7 @@ const ManageUsers = () => {
         </table>
       </div>
 
-      {/* Popup-dialog för att hantera inaktivering/aktivering/borttagning */}
+      {/* === MODALEN === */}
       {showDeleteModal && (
         <div className="modal-overlay">
           <div className="modal-content">

@@ -67,7 +67,8 @@ const Dashboard = () => {
           const reportDate = new Date(report.date);
           return reportDate >= start && reportDate <= end;
         });
-
+  
+      // Summera totalSales per managerName
       const teamStats = {};
       reportsData.forEach(report => {
         const team = report.managerName || 'Okänt team';
@@ -76,12 +77,16 @@ const Dashboard = () => {
         }
         teamStats[team] += parseFloat(report.totalSales || 0);
       });
-
+  
+      // Omvandla till array och sortera fallande
       const stats = Object.entries(teamStats).map(([team, totalSales]) => ({
         team,
         totalSales
       }));
-
+  
+      // Sortera så att flest avtal kommer först
+      stats.sort((a, b) => b.totalSales - a.totalSales);
+  
       setYesterdayStats(stats);
     } catch (error) {
       console.error("Error fetching yesterday's stats:", error);
