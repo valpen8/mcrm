@@ -21,6 +21,7 @@
   .filter-container label, .dropdown-container label {
     flex: 1 1 100%;
     margin-bottom: 5px;
+    
   }
   
   .filter-container input[type="date"],
@@ -258,4 +259,17 @@
     .input-group {
       flex: 1 1 calc(25% - 10px);
     }
+  }
+
+  .load-more-button {
+    display: block;
+    width: auto; /* Eller sätt en fast bredd, t.ex. 200px */
+    padding: 12px 24px;
+    background-color: #007bff; /* Bootstrap primary color */
+    color: white;
+    border: none;
+    cursor: pointer;
+    text-align: center;
+    font-size: 16px;
+    margin: 20px auto; /* 20px på toppen och botten, auto centrerar horisontellt */
   }

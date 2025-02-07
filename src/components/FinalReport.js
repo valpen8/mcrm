@@ -7,7 +7,10 @@ import {
   addDoc, 
   deleteDoc, 
   doc, 
-  getDoc 
+  getDoc,
+  orderBy,
+  limit,
+  startAfter
 } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { useAuth } from '../auth';
@@ -16,7 +19,7 @@ import './styles/FinalReport.css';
 const FinalReport = () => {
   const { currentUser } = useAuth();
 
-  // -- Dina existerande state-variabler --
+  // --- Existerande state-variabler ---
   const [managerData, setManagerData] = useState(null);
   const [teamMembers, setTeamMembers] = useState([]);
   const [selectedMembers, setSelectedMembers] = useState([]);
@@ -28,22 +31,24 @@ const FinalReport = () => {
   const [totalSales, setTotalSales] = useState(0);
   const [goal, setGoal] = useState('');
   const [date, setDate] = useState('');
+
+  // --- För paginering av rapporter ---
   const [finalReports, setFinalReports] = useState([]);
-  const [expandedReportId, setExpandedReportId] = useState(null);
+  const [lastVisible, setLastVisible] = useState(null);
+  const [hasMoreReports, setHasMoreReports] = useState(true);
 
-  // -- Hämta organisationer från Firestore --
+  // --- Övriga state-variabler ---
   const [organizations, setOrganizations] = useState([]);
-
-  // -- Nytt för återaktiveringar --
   const [reactivationsData, setReactivationsData] = useState({});
   const [totalReactivations, setTotalReactivations] = useState(0);
+  const [expandedReportId, setExpandedReportId] = useState(null);
 
   useEffect(() => {
     console.log('Inloggad användare:', currentUser);
     if (currentUser) {
       fetchManagerData();
       fetchTeamMembers();
-      fetchFinalReports();
+      fetchFinalReports(); // Hämtar den första batchen (2 rapporter)
       fetchOrganizations();
     } else {
       console.log('Ingen inloggad användare.');
@@ -69,7 +74,10 @@ const FinalReport = () => {
   const fetchTeamMembers = async () => {
     if (currentUser) {
       try {
-        const q = query(collection(db, 'users'), where('managerUid', '==', currentUser.uid));
+        const q = query(
+          collection(db, 'users'),
+          where('managerUid', '==', currentUser.uid)
+        );
         const querySnapshot = await getDocs(q);
         const membersData = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         setTeamMembers(membersData);
@@ -79,15 +87,49 @@ const FinalReport = () => {
     }
   };
 
+  // Hämtar initialt endast 2 rapporter sorterade på datum (nyaste först)
   const fetchFinalReports = async () => {
     if (currentUser) {
       try {
-        const q = query(collection(db, 'finalReports'), where('managerUid', '==', currentUser.uid));
-        const querySnapshot = await getDocs(q);
+        const reportsQuery = query(
+          collection(db, 'finalReports'),
+          where('managerUid', '==', currentUser.uid),
+          orderBy('date', 'desc'),
+          limit(2)
+        );
+        const querySnapshot = await getDocs(reportsQuery);
         const reportsData = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
         setFinalReports(reportsData);
+
+        const lastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+        setLastVisible(lastVisibleDoc);
+        setHasMoreReports(querySnapshot.docs.length === 2);
       } catch (error) {
         console.error('Fel vid hämtning av slutrapporter:', error);
+      }
+    }
+  };
+
+  // Hämtar nästa batch (2 rapporter) med hjälp av startAfter
+  const fetchMoreReports = async () => {
+    if (currentUser && lastVisible) {
+      try {
+        const reportsQuery = query(
+          collection(db, 'finalReports'),
+          where('managerUid', '==', currentUser.uid),
+          orderBy('date', 'desc'),
+          startAfter(lastVisible),
+          limit(2)
+        );
+        const querySnapshot = await getDocs(reportsQuery);
+        const reportsData = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        setFinalReports(prevReports => [...prevReports, ...reportsData]);
+
+        const lastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+        setLastVisible(lastVisibleDoc);
+        setHasMoreReports(querySnapshot.docs.length === 2);
+      } catch (error) {
+        console.error('Fel vid hämtning av fler rapporter:', error);
       }
     }
   };
@@ -106,7 +148,7 @@ const FinalReport = () => {
     }
   };
 
-  // -- Hantera försäljnings-input --
+  // Hantera försäljnings-input
   const handleInputChange = (e, memberId) => {
     const { value } = e.target;
     const parsedValue = value.replace(/[^0-9+\-]/g, '');
@@ -115,28 +157,24 @@ const FinalReport = () => {
       [memberId]: parsedValue,
     }));
 
-    // Räkna om total försäljning
     const total = Object.values({ ...salesData, [memberId]: parsedValue })
       .map(item => parseInt(item.replace(/[^\d]/g, '')) || 0)
       .reduce((acc, num) => acc + num, 0);
     setTotalSales(total);
   };
 
-  // -- Hantera återaktiveringar-input --
+  // Hantera återaktiveringar-input
   const handleReactivationsChange = (e, memberId) => {
     const { value } = e.target;
     const parsedValue = value.replace(/[^0-9+\-]/g, '');
-
     setReactivationsData(prevData => ({
       ...prevData,
       [memberId]: parsedValue,
     }));
 
-    // Räkna om total återaktivering
     const totalReacts = Object.values({ ...reactivationsData, [memberId]: parsedValue })
       .map(item => parseInt(item.replace(/[^\d]/g, '')) || 0)
       .reduce((acc, num) => acc + num, 0);
-
     setTotalReactivations(totalReacts);
   };
 
@@ -158,18 +196,14 @@ const FinalReport = () => {
 
   const handleRemoveMember = (memberId) => {
     setSelectedMembers(selectedMembers.filter(member => member.id !== memberId));
-
-    // Ta bort försäljnings- och återaktiveringsvärden för borttagen medlem
     setSalesData(prevData => {
       const { [memberId]: removedSales, ...rest } = prevData;
       return rest;
     });
-
     setReactivationsData(prevData => {
       const { [memberId]: removedReacts, ...rest } = prevData;
       return rest;
     });
-
     setStatusData(prevData => {
       const { [memberId]: removedStatus, ...rest } = prevData;
       return rest;
@@ -190,7 +224,6 @@ const FinalReport = () => {
         absentMembers,
         totalSales,
         goal,
-        // -- totalReactivations läggs till i rapporten --
         totalReactivations,
         salesData: selectedMembers.reduce((acc, member) => {
           acc[member.id] = {
@@ -234,6 +267,19 @@ const FinalReport = () => {
       }
 
       alert('Rapport sparad och användarens rapporter uppdaterade!');
+
+      // Nollställ alla fält för att undvika dubbla inlägg
+      setDate('');
+      setOrganisation('');
+      setLocation('');
+      setAbsentMembers('');
+      setSalesData({});
+      setReactivationsData({});
+      setTotalSales(0);
+      setTotalReactivations(0);
+      setGoal('');
+      setStatusData({});
+      setSelectedMembers([]);
     } catch (error) {
       console.error('Fel vid sparande av rapport:', error);
     }
@@ -248,7 +294,6 @@ const FinalReport = () => {
         const reportData = reportDocSnap.data();
         const salesData = reportData.salesData;
 
-        // Ta bort rapporter i användares subsamling 'reports'
         for (const [userId] of Object.entries(salesData)) {
           try {
             const userReportsCollectionRef = collection(db, `users/${userId}/reports`);
@@ -269,7 +314,6 @@ const FinalReport = () => {
           }
         }
 
-        // Ta bort rapport från finalReports
         await deleteDoc(reportDocRef);
         setFinalReports(prevReports => prevReports.filter(report => report.id !== reportId));
         alert('Rapporten och dess relaterade användarrapporter har tagits bort.');
@@ -340,7 +384,6 @@ const FinalReport = () => {
             <th>Teammedlem</th>
             <th>Status</th>
             <th>Antal försäljningar</th>
-            {/* Visar kolumn för "Återaktiveringar" ENDAST om organisationen är Factor eller HelloFresh */}
             {(organisation === 'Factor' || organisation === 'HelloFresh') && (
               <th>Återaktiveringar</th>
             )}
@@ -369,8 +412,6 @@ const FinalReport = () => {
                   placeholder="0"
                 />
               </td>
-
-              {/* Input för återaktiveringar om Factor/HelloFresh */}
               {(organisation === 'Factor' || organisation === 'HelloFresh') && (
                 <td>
                   <input
@@ -381,7 +422,6 @@ const FinalReport = () => {
                   />
                 </td>
               )}
-
               <td>
                 <button
                   className="remove-button"
@@ -401,15 +441,12 @@ const FinalReport = () => {
           <label>Totalt försäljningar:</label>
           <span className="total-sales">{totalSales}</span>
         </div>
-
-        {/* Visar total återaktiveringar om organisation = Factor eller HelloFresh */}
         {(organisation === 'Factor' || organisation === 'HelloFresh') && (
           <div className="input-group">
             <label>Totalt återaktiveringar:</label>
             <span className="total-sales">{totalReactivations}</span>
           </div>
         )}
-
         <div className="input-group">
           <label>Måluppfyllnad:</label>
           <input
@@ -425,28 +462,22 @@ const FinalReport = () => {
         Spara Rapport
       </button>
 
-      {/* ----- Lista över tidigare rapporter ----- */}
+      {/* ----- Lista över tidigare rapporter (paginerade) ----- */}
       <div className="report-list-container">
         <h2>Tidigare Rapporter</h2>
-
         {finalReports.length === 0 ? (
           <p>Inga tidigare rapporter hittades.</p>
         ) : (
           <>
             {(() => {
-              // Filtrera ut Factor/HelloFresh-rapporter kontra övriga
               const factorHFReports = finalReports.filter(
-                (rep) =>
-                  rep.organisation === 'Factor' || rep.organisation === 'HelloFresh'
+                rep => rep.organisation === 'Factor' || rep.organisation === 'HelloFresh'
               );
               const otherReports = finalReports.filter(
-                (rep) =>
-                  rep.organisation !== 'Factor' && rep.organisation !== 'HelloFresh'
+                rep => rep.organisation !== 'Factor' && rep.organisation !== 'HelloFresh'
               );
-
               return (
                 <>
-                  {/* ---------- TABELL 1: Factor/HelloFresh ---------- */}
                   {factorHFReports.length > 0 && (
                     <div className="previous-reports-table-wrapper">
                       <h3>Factor & HelloFresh Rapporter</h3>
@@ -472,20 +503,14 @@ const FinalReport = () => {
                                 <td data-label="Organisation">{report.organisation}</td>
                                 <td data-label="Plats">{report.location}</td>
                                 <td data-label="Totalt Försäljningar">{report.totalSales}</td>
-                                <td data-label="Totalt Återaktiveringar">
-                                  {report.totalReactivations || 0}
-                                </td>
+                                <td data-label="Totalt Återaktiveringar">{report.totalReactivations || 0}</td>
                                 <td data-label="Mål">{report.goal}</td>
-                                <td data-label="Sjuka/Lediga">
-                                  {report.absentMembers || '-'}
-                                </td>
+                                <td data-label="Sjuka/Lediga">{report.absentMembers || '-'}</td>
                                 <td data-label="Skapad av">{report.managerName}</td>
                                 <td data-label="Åtgärder">
                                   <button
                                     onClick={() =>
-                                      setExpandedReportId(
-                                        expandedReportId === report.id ? null : report.id
-                                      )
+                                      setExpandedReportId(expandedReportId === report.id ? null : report.id)
                                     }
                                   >
                                     {expandedReportId === report.id ? 'Dölj' : 'Visa'}
@@ -498,8 +523,6 @@ const FinalReport = () => {
                                   </button>
                                 </td>
                               </tr>
-
-                              {/* Expanderad rad med reactivations */}
                               {expandedReportId === report.id && (
                                 <tr className="expanded-row">
                                   <td colSpan="9">
@@ -507,11 +530,7 @@ const FinalReport = () => {
                                     <ul>
                                       {Object.values(report.salesData).map((data, index) => (
                                         <li key={index}>
-                                          {data.name}
-                                          {' - Sälj ID: '} {data.salesId}
-                                          {' - Försäljning: '} {data.sales}
-                                          {' - Återaktiveringar: '} {data.reactivations || 0}
-                                          {' - Status: '} {data.status}
+                                          {data.name} - Sälj ID: {data.salesId} - Försäljning: {data.sales} - Återaktiveringar: {data.reactivations || 0} - Status: {data.status}
                                         </li>
                                       ))}
                                     </ul>
@@ -525,7 +544,6 @@ const FinalReport = () => {
                     </div>
                   )}
 
-                  {/* ---------- TABELL 2: Övriga organisationer ---------- */}
                   {otherReports.length > 0 && (
                     <div className="previous-reports-table-wrapper">
                       <h3>Övriga Rapporter</h3>
@@ -551,16 +569,12 @@ const FinalReport = () => {
                                 <td data-label="Plats">{report.location}</td>
                                 <td data-label="Totalt Försäljningar">{report.totalSales}</td>
                                 <td data-label="Mål">{report.goal}</td>
-                                <td data-label="Sjuka/Lediga">
-                                  {report.absentMembers || '-'}
-                                </td>
+                                <td data-label="Sjuka/Lediga">{report.absentMembers || '-'}</td>
                                 <td data-label="Skapad av">{report.managerName}</td>
                                 <td data-label="Åtgärder">
                                   <button
                                     onClick={() =>
-                                      setExpandedReportId(
-                                        expandedReportId === report.id ? null : report.id
-                                      )
+                                      setExpandedReportId(expandedReportId === report.id ? null : report.id)
                                     }
                                   >
                                     {expandedReportId === report.id ? 'Dölj' : 'Visa'}
@@ -573,8 +587,6 @@ const FinalReport = () => {
                                   </button>
                                 </td>
                               </tr>
-
-                              {/* Expanderad rad UTAN reactivations */}
                               {expandedReportId === report.id && (
                                 <tr className="expanded-row">
                                   <td colSpan="8">
@@ -582,10 +594,7 @@ const FinalReport = () => {
                                     <ul>
                                       {Object.values(report.salesData).map((data, index) => (
                                         <li key={index}>
-                                          {data.name}
-                                          {' - Sälj ID: '} {data.salesId}
-                                          {' - Försäljning: '} {data.sales}
-                                          {' - Status: '} {data.status}
+                                          {data.name} - Sälj ID: {data.salesId} - Försäljning: {data.sales} - Status: {data.status}
                                         </li>
                                       ))}
                                     </ul>
@@ -604,6 +613,13 @@ const FinalReport = () => {
           </>
         )}
       </div>
+
+      {/* "Ladda mer"-knapp */}
+      {hasMoreReports && (
+        <button onClick={fetchMoreReports} className="load-more-button">
+          Ladda mer
+        </button>
+      )}
     </div>
   );
 };
