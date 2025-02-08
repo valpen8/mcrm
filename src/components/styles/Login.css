@@ -12,9 +12,9 @@
 
 /* Header */
 .login-box img {
-width: 250px;
-margin-bottom: 30px;
-margin-top: 30px;
+  width: 250px;
+  margin-bottom: 30px;
+  margin-top: 30px;
 }
 
 .login-box {
@@ -32,19 +32,30 @@ margin-top: 30px;
   margin-bottom: 20px;
 }
 
+/* Uppdaterad label-styling för bättre avstånd och inriktning */
 .login-box label {
   display: block;
-  font-weight: bold;
+  font-weight: 600;
   text-align: left;
-  margin-bottom: 8px;
+  margin-top: 15px;   /* Lite extra utrymme ovanför varje label */
+  margin-bottom: 5px; /* Avstånd mellan label och input */
 }
 
+/* Uppdaterad input-styling för en modernare look */
 .login-box input {
-  width: 100%;
-  padding: 10px;
+  width: 90%;
+  padding: 12px;
   margin-bottom: 20px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.login-box input:focus {
+  border-color: #a83279;
+  box-shadow: 0 0 8px rgba(168, 50, 121, 0.3);
+  outline: none;
 }
 
 .login-box button {
@@ -62,63 +73,73 @@ margin-top: 30px;
   background-color: #1a252f;
 }
 
-.forgot-password {
-  display: block;
-  margin-top: 20px;
+/* Ny stil för glömt lösenord-knappen med möjlighet att justera bredden */
+.login-box .forgot-password-btn {
+  background: none;
+  border: none;
   color: #888;
-  text-decoration: none;
+  font-size: 12px !important;  /* Mindre teckenstorlek */
+  text-decoration: underline;
+  margin-top: 10px !important; /* Mindre marginal ovanför knappen */
+  cursor: pointer;
+  padding: 0;
+  display: inline-block; /* Behövs för att kunna styra bredden */
+  width: 150px;         /* Justera bredden här efter behov */
+  text-align: center;   /* Centrerar knapptexten */
 }
 
-.forgot-password:hover {
-  text-decoration: underline;
+.login-box .forgot-password-btn:hover {
+  color: #555;
 }
 
 /* Responsiv design */
 @media (max-width: 768px) {
-.login-container {
-  height: auto; /* Gör det responsivt för mindre skärmar */
-  padding: 20px; /* Anpassa marginalerna för mindre skärmar */
-}
+  .login-container {
+    height: auto; /* Gör det responsivt för mindre skärmar */
+    padding: 20px; /* Anpassa marginalerna för mindre skärmar */
+  }
 
-.login-box {
-  padding: 20px; /* Minska inre marginaler */
-  max-width: 90%; /* Anpassa bredden till mindre skärmar */
-  box-shadow: none; /* Ta bort skuggan för enkelhet */
-}
+  .login-box {
+    padding: 20px; /* Minska inre marginaler */
+    max-width: 90%; /* Anpassa bredden till mindre skärmar */
+    box-shadow: none; /* Ta bort skuggan för enkelhet */
+  }
 
-.login-box img {
-  width: 150px; /* Minska storleken på logotypen */
-  margin-bottom: 20px;
-}
+  .login-box img {
+    width: 150px; /* Minska storleken på logotypen */
+    margin-bottom: 20px;
+  }
 
-.login-box input {
-  padding: 8px; /* Mindre marginaler för inmatningsfält */
-  font-size: 14px;
-}
+  .login-box input {
+    padding: 10px;
+    font-size: 14px;
+  }
 
-.login-box button {
-  padding: 10px;
-  font-size: 14px; /* Mindre knapptext för mindre skärmar */
-}
+  .login-box button {
+    padding: 10px;
+    font-size: 14px; /* Mindre knapptext för mindre skärmar */
+  }
 
-.forgot-password {
-  font-size: 14px;
-}
+  .login-box .forgot-password-btn {
+    font-size: 12px;
+    /* Om du vill ändra bredden för mindre skärmar kan du lägga in en annan width här, t.ex.: */
+    /* width: 120px; */
+  }
 }
 
 @media (max-width: 480px) {
-.login-box {
-  padding: 15px;
-  max-width: 95%; /* Ytterligare justering för mycket små skärmar */
-}
+  .login-box {
+    padding: 15px;
+    max-width: 95%; /* Ytterligare justering för mycket små skärmar */
+  }
 
-.login-box input {
-  padding: 6px; /* Ytterligare minskning av marginaler för små skärmar */
-  font-size: 12px;
-}
+  .login-box input {
+    padding: 8px;
+    font-size: 12px;
+  }
 
-.login-box button {
-  padding: 8px;
-  font-size: 12px;
-}
+  .login-box button {
+    padding: 8px;
+    font-size: 12px;
+  }
 }

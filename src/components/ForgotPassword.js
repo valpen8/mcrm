@@ -1,43 +1,51 @@
 import React, { useState } from 'react';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebaseConfig';
+import { useNavigate } from 'react-router-dom';
 import './styles/ForgotPassword.css';
 
 const ForgotPassword = () => {
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
+  const [resetError, setResetError] = useState('');
+  const navigate = useNavigate();
 
   const handlePasswordReset = async (e) => {
     e.preventDefault();
-    setMessage('');
-    setError('');
+    setResetMessage('');
+    setResetError('');
 
     try {
-      await sendPasswordResetEmail(auth, email);
-      setMessage('Ett återställningsmail har skickats. Kontrollera din e-post.');
+      await sendPasswordResetEmail(auth, resetEmail);
+      setResetMessage('Ett återställningsmail har skickats. Kontrollera din e-post.');
     } catch (error) {
-      setError('Fel vid lösenordsåterställning: ' + error.message);
+      setResetError('Fel vid lösenordsåterställning: ' + error.message);
     }
   };
 
+  const handleClose = () => {
+    // Navigera tillbaka eller gör något annat för att "stänga" modalen
+    navigate(-1);
+  };
+
   return (
-    <div className="forgot-password-container">
-      <div className="forgot-password-box">
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <button className="close-modal" onClick={handleClose}>X</button>
         <h1>Återställ lösenord</h1>
         <form onSubmit={handlePasswordReset}>
-          <label htmlFor="email">E-post</label>
+          <label htmlFor="resetEmail">E-post</label>
           <input
             type="email"
-            id="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            id="resetEmail"
+            value={resetEmail}
+            onChange={(e) => setResetEmail(e.target.value)}
             placeholder="Ange din e-postadress"
           />
           <button type="submit">Skicka</button>
         </form>
-        {message && <p style={{ color: 'green' }}>{message}</p>}
-        {error && <p style={{ color: 'red' }}>{error}</p>}
+        {resetMessage && <p style={{ color: 'green' }}>{resetMessage}</p>}
+        {resetError && <p style={{ color: 'red' }}>{resetError}</p>}
       </div>
     </div>
   );
