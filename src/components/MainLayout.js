@@ -102,13 +102,28 @@ const MainLayout = () => {
         )
       : menuItems[currentUserRole] || [];
 
+  // Bestäm rätt dashboard path beroende på användarroll
+  const dashboardPath =
+    currentUserRole === 'admin'
+      ? '/admin/dashboard'
+      : currentUserRole === 'sales-manager'
+      ? '/sales-manager/dashboard'
+      : currentUserRole === 'quality'
+      ? '/quality/dashboard'
+      : currentUserRole === 'uppdragsgivare'
+      ? '/uppdragsgivare/dashboard'
+      : '/user/dashboard';
+
   return (
     <div className="layout">
       <header className="header">
         <span className="menu-icon" onClick={toggleMenu}>
           &#9776;
         </span>
-        <img src={logga} alt="Logga" />
+        {/* Loggan blir klickbar och tar användaren till rätt dashboard */}
+        <Link to={dashboardPath}>
+          <img src={logga} alt="Logga" />
+        </Link>
       </header>
 
       <aside className={`sidebar ${isMenuOpen ? 'open' : ''}`}>
@@ -117,7 +132,7 @@ const MainLayout = () => {
             {/* Dynamiska länkar baserat på roll */}
             {filteredMenuItems.map((item, index) => (
               <li key={index}>
-                {/* Stäng menyn när du klickar på en länk */}
+                {/* Stänger menyn när du klickar på en länk */}
                 <Link to={item.path} onClick={closeMenu}>
                   {item.label}
                 </Link>

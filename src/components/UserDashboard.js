@@ -142,7 +142,7 @@ const UserDashboard = () => {
     <div className="dashboard-content"> 
       {/* Huvudcontainer enligt din nya CSS-klasser */}
 
-      <h1 className="dashboard-title">My Sales Dashboard</h1>
+      <h1 className="dashboard-title">My Dashboard</h1>
 
       <button className="refresh-btn" onClick={fetchData}>
         {loading ? 'Laddar...' : 'Uppdatera Data'}
@@ -172,7 +172,7 @@ const UserDashboard = () => {
           </div>
 
           <div className="top-sales-managers">
-            <h2>Bästa team (Sales Managers)</h2>
+            <h2>Bästa Team</h2>
             <ul>
               {topTeams.map((team, index) => (
                 <li key={index}>

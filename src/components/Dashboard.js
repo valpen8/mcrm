@@ -10,6 +10,7 @@ const Dashboard = () => {
   const [topTeams, setTopTeams] = useState([]);
   const [orgStats, setOrgStats] = useState([]);
   const [yesterdayStats, setYesterdayStats] = useState([]);
+  const [yesterdayOrgStats, setYesterdayOrgStats] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const getCurrentPeriod = () => {
@@ -52,45 +53,10 @@ const Dashboard = () => {
       fetchTopUsers(),
       fetchTopTeams(),
       fetchOrgStats(),
-      fetchYesterdayStats()
+      fetchYesterdayStats(),
+      fetchYesterdayOrgStats()  // Nytt anrop för gårdagens organisationsstatistik
     ]);
     setLoading(false);
-  };
-
-  const fetchYesterdayStats = async () => {
-    const { start, end } = getYesterdayPeriod();
-    try {
-      const reportsSnapshot = await getDocs(collection(db, 'finalReports'));
-      const reportsData = reportsSnapshot.docs
-        .map(doc => doc.data())
-        .filter(report => {
-          const reportDate = new Date(report.date);
-          return reportDate >= start && reportDate <= end;
-        });
-  
-      // Summera totalSales per managerName
-      const teamStats = {};
-      reportsData.forEach(report => {
-        const team = report.managerName || 'Okänt team';
-        if (!teamStats[team]) {
-          teamStats[team] = 0;
-        }
-        teamStats[team] += parseFloat(report.totalSales || 0);
-      });
-  
-      // Omvandla till array och sortera fallande
-      const stats = Object.entries(teamStats).map(([team, totalSales]) => ({
-        team,
-        totalSales
-      }));
-  
-      // Sortera så att flest avtal kommer först
-      stats.sort((a, b) => b.totalSales - a.totalSales);
-  
-      setYesterdayStats(stats);
-    } catch (error) {
-      console.error("Error fetching yesterday's stats:", error);
-    }
   };
 
   const fetchTotalSales = async () => {
@@ -222,6 +188,73 @@ const Dashboard = () => {
     }
   };
 
+  const fetchYesterdayStats = async () => {
+    const { start, end } = getYesterdayPeriod();
+    try {
+      const reportsSnapshot = await getDocs(collection(db, 'finalReports'));
+      const reportsData = reportsSnapshot.docs
+        .map(doc => doc.data())
+        .filter(report => {
+          const reportDate = new Date(report.date);
+          return reportDate >= start && reportDate <= end;
+        });
+
+      // Summera totalSales per managerName
+      const teamStats = {};
+      reportsData.forEach(report => {
+        const team = report.managerName || 'Okänt team';
+        if (!teamStats[team]) {
+          teamStats[team] = 0;
+        }
+        teamStats[team] += parseFloat(report.totalSales || 0);
+      });
+
+      // Omvandla till array och sortera fallande
+      const stats = Object.entries(teamStats).map(([team, totalSales]) => ({
+        team,
+        totalSales
+      }));
+      stats.sort((a, b) => b.totalSales - a.totalSales);
+
+      setYesterdayStats(stats);
+    } catch (error) {
+      console.error("Error fetching yesterday's stats:", error);
+    }
+  };
+
+  // Ny funktion: Hämtar gårdagens statistik per organisation
+  const fetchYesterdayOrgStats = async () => {
+    const { start, end } = getYesterdayPeriod();
+    try {
+      const reportsSnapshot = await getDocs(collection(db, 'finalReports'));
+      const reportsData = reportsSnapshot.docs
+        .map(doc => doc.data())
+        .filter(report => {
+          const reportDate = new Date(report.date);
+          return reportDate >= start && reportDate <= end;
+        });
+
+      const organizations = {};
+      reportsData.forEach(report => {
+        const orgName = report.organisation || "Okänd organisation";
+        if (!organizations[orgName]) {
+          organizations[orgName] = 0;
+        }
+        organizations[orgName] += parseFloat(report.totalSales || 0);
+      });
+
+      const yesterdayOrgStats = Object.entries(organizations).map(([orgName, totalSales]) => ({
+        orgName,
+        totalSales,
+      }));
+      yesterdayOrgStats.sort((a, b) => b.totalSales - a.totalSales);
+
+      setYesterdayOrgStats(yesterdayOrgStats);
+    } catch (error) {
+      console.error("Error fetching yesterday's organization stats:", error);
+    }
+  };
+
   return (
     <div className="dashboard-content">
       <h1 className="dashboard-title">Dashboard</h1>
@@ -238,7 +271,7 @@ const Dashboard = () => {
           </div>
 
           <div className="top-users">
-            <h2>Top 10 säljare</h2>
+            <h2>Top 10 Säljare</h2>
             <ul>
               {topUsers.map((user, index) => (
                 <li key={index}>
@@ -249,7 +282,7 @@ const Dashboard = () => {
           </div>
 
           <div className="top-sales-managers">
-            <h2>Bästa team</h2>
+            <h2>Bästa Team</h2>
             <ul>
               {topTeams.map((team, index) => (
                 <li key={index}>
@@ -276,6 +309,17 @@ const Dashboard = () => {
               {yesterdayStats.map((stat, index) => (
                 <li key={index}>
                   {index + 1}. {stat.team}: {stat.totalSales} Avtal
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="yesterday-org-stats">
+            <h2>Gårdagens Statistiska Organisationer</h2>
+            <ul>
+              {yesterdayOrgStats.map((org, index) => (
+                <li key={index}>
+                  {index + 1}. {org.orgName}: {org.totalSales} Avtal
                 </li>
               ))}
             </ul>

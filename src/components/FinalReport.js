@@ -211,6 +211,12 @@ const FinalReport = () => {
   };
 
   const handleSubmit = async () => {
+    // Validera att obligatoriska fält är ifyllda
+    if (!date || !organisation || !location) {
+      alert("Vänligen fyll i alla obligatoriska fält: Datum, Organisation och Plats.");
+      return;
+    }
+
     try {
       // Förbered data för slutrapport
       const reportData = {
@@ -458,7 +464,11 @@ const FinalReport = () => {
         </div>
       </div>
 
-      <button onClick={handleSubmit} className="submit-button">
+      <button 
+        onClick={handleSubmit} 
+        className="submit-button"
+        disabled={!date || !organisation || !location}
+      >
         Spara Rapport
       </button>
 
