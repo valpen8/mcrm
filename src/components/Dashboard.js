@@ -13,6 +13,12 @@ const Dashboard = () => {
   const [yesterdayOrgStats, setYesterdayOrgStats] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // För försäljningsjämförelse (visas som procent i övre högra hörnet)
+  const [partialSales, setPartialSales] = useState(0);
+  const [previousPartialSales, setPreviousPartialSales] = useState(0);
+  const [percentageChange, setPercentageChange] = useState(0);
+
+  // Returnerar start och slut för innevarande period (18:e → 17:e)
   const getCurrentPeriod = () => {
     const today = new Date();
     let start, end;
@@ -28,18 +34,41 @@ const Dashboard = () => {
     return { start, end };
   };
 
+  // Returnerar datumintervall för "igår"
   const getYesterdayPeriod = () => {
     const today = new Date();
     const start = new Date(today);
     const end = new Date(today);
-
     start.setDate(today.getDate() - 1);
     start.setHours(0, 0, 0, 0);
-
     end.setDate(today.getDate() - 1);
     end.setHours(23, 59, 59, 999);
-
     return { start, end };
+  };
+
+  // Hur många dagar har gått i nuvarande period (18:e → i dag, eller 17:e om perioden redan är slut)
+  const getDaysElapsedInCurrentPeriod = (currentStart, currentEnd) => {
+    const today = new Date();
+    const effectiveToday = today > currentEnd ? currentEnd : today;
+    if (effectiveToday < currentStart) return 0;
+    const diffTime = effectiveToday.getTime() - currentStart.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    return diffDays;
+  };
+
+  // Hämta total försäljning mellan två datum
+  const fetchPartialSales = async (startDate, endDate) => {
+    const reportsSnapshot = await getDocs(collection(db, 'finalReports'));
+    const reportsData = reportsSnapshot.docs
+      .map(doc => doc.data())
+      .filter(report => {
+        const reportDate = new Date(report.date);
+        return reportDate >= startDate && reportDate <= endDate;
+      });
+    const total = reportsData.reduce((sum, report) => {
+      return sum + parseFloat(report.totalSales || 0);
+    }, 0);
+    return total;
   };
 
   useEffect(() => {
@@ -54,27 +83,59 @@ const Dashboard = () => {
       fetchTopTeams(),
       fetchOrgStats(),
       fetchYesterdayStats(),
-      fetchYesterdayOrgStats()  // Nytt anrop för gårdagens organisationsstatistik
+      fetchYesterdayOrgStats()
     ]);
     setLoading(false);
   };
 
+  // Uppdaterad funktion som hämtar totala försäljningen och även beräknar den partiella försäljningen
+  // samt den procentuella skillnaden mot föregående period.
   const fetchTotalSales = async () => {
-    const { start, end } = getCurrentPeriod();
+    const { start: currentStart, end: currentEnd } = getCurrentPeriod();
     try {
       const reportsSnapshot = await getDocs(collection(db, 'finalReports'));
       const reportsData = reportsSnapshot.docs
         .map(doc => doc.data())
         .filter(report => {
           const reportDate = new Date(report.date);
-          return reportDate >= start && reportDate <= end;
+          return reportDate >= currentStart && reportDate <= currentEnd;
         });
-
       const total = reportsData.reduce((sum, report) => sum + parseFloat(report.totalSales || 0), 0);
       const avg = reportsData.length > 0 ? total / reportsData.length : 0;
-
       setTotalSales(total);
       setAverageSales(avg);
+
+      // Hur många dagar har passerat i nuvarande period?
+      const daysElapsed = getDaysElapsedInCurrentPeriod(currentStart, currentEnd);
+
+      // Partiell försäljning: från periodens start till idag (eller 17:e om perioden redan är slut)
+      const partialEndCurrent = new Date(currentStart.getTime() + (daysElapsed * 24 * 60 * 60 * 1000));
+      if (partialEndCurrent > currentEnd) {
+        partialEndCurrent.setTime(currentEnd.getTime());
+      }
+      partialEndCurrent.setHours(23, 59, 59, 999);
+      const currentPartial = await fetchPartialSales(currentStart, partialEndCurrent);
+      setPartialSales(currentPartial);
+
+      // Motsvarande intervall för föregående period
+      const previousStart = new Date(currentStart);
+      previousStart.setMonth(previousStart.getMonth() - 1);
+      const previousEnd = new Date(currentEnd);
+      previousEnd.setMonth(previousEnd.getMonth() - 1);
+      const partialEndPrevious = new Date(previousStart.getTime() + (daysElapsed * 24 * 60 * 60 * 1000));
+      if (partialEndPrevious > previousEnd) {
+        partialEndPrevious.setTime(previousEnd.getTime());
+      }
+      partialEndPrevious.setHours(23, 59, 59, 999);
+      const prevPartial = await fetchPartialSales(previousStart, partialEndPrevious);
+      setPreviousPartialSales(prevPartial);
+
+      let change = 0;
+      if (prevPartial > 0) {
+        change = ((currentPartial - prevPartial) / prevPartial) * 100;
+      }
+      setPercentageChange(change);
+
     } catch (error) {
       console.error("Error fetching total sales:", error);
     }
@@ -85,12 +146,10 @@ const Dashboard = () => {
     try {
       const usersQuery = collection(db, 'users');
       const usersSnapshot = await getDocs(usersQuery);
-
       const allUsers = usersSnapshot.docs.map(async (userDoc) => {
         const userId = userDoc.id;
         const userData = userDoc.data();
         const userName = `${userData.firstName} ${userData.lastName}`;
-
         const reportsQuery = query(
           collection(db, `users/${userId}/reports`),
           where('date', '>=', start.toISOString()),
@@ -101,16 +160,13 @@ const Dashboard = () => {
           const reportData = report.data();
           return sum + parseFloat(reportData.sales || 0);
         }, 0);
-
         return { userName, totalSales };
       });
-
       const resolvedUsers = await Promise.all(allUsers);
       const topUsers = resolvedUsers
         .filter(user => user.totalSales > 0)
         .sort((a, b) => b.totalSales - a.totalSales)
         .slice(0, 10);
-
       setTopUsers(topUsers);
     } catch (error) {
       console.error("Error fetching top users:", error);
@@ -127,7 +183,6 @@ const Dashboard = () => {
           const reportDate = new Date(report.date);
           return reportDate >= start && reportDate <= end;
         });
-
       const teams = {};
       reportsData.forEach(data => {
         const managerId = data.managerUid;
@@ -136,19 +191,14 @@ const Dashboard = () => {
         }
         teams[managerId] += parseFloat(data.totalSales || 0);
       });
-
       const teamPromises = Object.entries(teams).map(async ([managerId, totalSales]) => {
         const managerDoc = await getDocs(query(collection(db, 'users'), where('__name__', '==', managerId)));
         const managerData = managerDoc.docs[0]?.data();
         const managerName = managerData ? `${managerData.firstName} ${managerData.lastName}` : managerId;
         return { managerName, totalSales };
       });
-
       const resolvedTeams = await Promise.all(teamPromises);
-      const sortedTeams = resolvedTeams
-        .sort((a, b) => b.totalSales - a.totalSales)
-        .slice(0, 5);
-
+      const sortedTeams = resolvedTeams.sort((a, b) => b.totalSales - a.totalSales).slice(0, 5);
       setTopTeams(sortedTeams);
     } catch (error) {
       console.error("Error fetching top teams:", error);
@@ -165,7 +215,6 @@ const Dashboard = () => {
           const reportDate = new Date(report.date);
           return reportDate >= start && reportDate <= end;
         });
-
       const organizations = {};
       reportsData.forEach(report => {
         const orgName = report.organisation;
@@ -175,13 +224,11 @@ const Dashboard = () => {
         organizations[orgName].totalSales += parseFloat(report.totalSales || 0);
         organizations[orgName].reportCount += 1;
       });
-
       const orgStats = Object.entries(organizations).map(([orgName, stats]) => ({
         orgName,
         totalSales: stats.totalSales,
         avgSales: stats.reportCount > 0 ? stats.totalSales / stats.reportCount : 0
       }));
-
       setOrgStats(orgStats);
     } catch (error) {
       console.error("Error fetching organization stats:", error);
@@ -198,8 +245,6 @@ const Dashboard = () => {
           const reportDate = new Date(report.date);
           return reportDate >= start && reportDate <= end;
         });
-
-      // Summera totalSales per managerName
       const teamStats = {};
       reportsData.forEach(report => {
         const team = report.managerName || 'Okänt team';
@@ -208,21 +253,17 @@ const Dashboard = () => {
         }
         teamStats[team] += parseFloat(report.totalSales || 0);
       });
-
-      // Omvandla till array och sortera fallande
       const stats = Object.entries(teamStats).map(([team, totalSales]) => ({
         team,
-        totalSales
+        totalSales,
       }));
       stats.sort((a, b) => b.totalSales - a.totalSales);
-
       setYesterdayStats(stats);
     } catch (error) {
       console.error("Error fetching yesterday's stats:", error);
     }
   };
 
-  // Ny funktion: Hämtar gårdagens statistik per organisation
   const fetchYesterdayOrgStats = async () => {
     const { start, end } = getYesterdayPeriod();
     try {
@@ -233,7 +274,6 @@ const Dashboard = () => {
           const reportDate = new Date(report.date);
           return reportDate >= start && reportDate <= end;
         });
-
       const organizations = {};
       reportsData.forEach(report => {
         const orgName = report.organisation || "Okänd organisation";
@@ -242,34 +282,68 @@ const Dashboard = () => {
         }
         organizations[orgName] += parseFloat(report.totalSales || 0);
       });
-
       const yesterdayOrgStats = Object.entries(organizations).map(([orgName, totalSales]) => ({
         orgName,
         totalSales,
       }));
       yesterdayOrgStats.sort((a, b) => b.totalSales - a.totalSales);
-
       setYesterdayOrgStats(yesterdayOrgStats);
     } catch (error) {
       console.error("Error fetching yesterday's organization stats:", error);
     }
   };
 
+  // --- Beräkna tidsmässig progression i perioden ---
+  const { start: currentStart, end: currentEnd } = getCurrentPeriod();
+  const totalDaysInPeriod = Math.floor((currentEnd.getTime() - currentStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const daysElapsed = getDaysElapsedInCurrentPeriod(currentStart, currentEnd);
+  const timeProgress = totalDaysInPeriod > 0 ? (daysElapsed / totalDaysInPeriod) * 100 : 0;
+
   return (
     <div className="dashboard-content">
       <h1 className="dashboard-title">Dashboard</h1>
       <button className="refresh-btn" onClick={fetchData}>Uppdatera Data</button>
-
       {loading ? (
         <p>Laddar...</p>
       ) : (
         <div className="dashboard-grid">
-          <div className="total-sales-stats">
+          {/* TOTAL SALES-STATS */}
+          <div className="total-sales-stats" style={{ position: 'relative' }}>
             <h2>Total Statistik</h2>
+            {/* Procentindikator (för försäljningsjämförelse) i övre högra hörnet */}
+            <div 
+              className="percentage-indicator"
+              style={{
+                position: 'absolute',
+                top: '10px',
+                right: '10px',
+                fontWeight: 'bold',
+                fontSize: '1rem'
+              }}
+            >
+              {percentageChange > 0 && (
+                <span style={{ color: 'green' }}>
+                  ▲ {percentageChange.toFixed(2)}%
+                </span>
+              )}
+              {percentageChange < 0 && (
+                <span style={{ color: 'red' }}>
+                  ▼ {Math.abs(percentageChange).toFixed(2)}%
+                </span>
+              )}
+              {percentageChange === 0 && (
+                <span>0%</span>
+              )}
+            </div>
             <p><strong>Totalt antal Avtal:</strong> {totalSales}</p>
             <p><strong>Genomsnittlig Avtal per rapport:</strong> {averageSales.toFixed(2)}</p>
+            {/* Progressbar som visar tidsmässig progression i perioden */}
+            <div className="progress-bar-container">
+              <div className="progress-bar" style={{ width: `${timeProgress.toFixed(1)}%` }} />
+            </div>
           </div>
 
+          {/* TOP USERS */}
           <div className="top-users">
             <h2>Top 10 Säljare</h2>
             <ul>
@@ -281,6 +355,7 @@ const Dashboard = () => {
             </ul>
           </div>
 
+          {/* TOP TEAMS */}
           <div className="top-sales-managers">
             <h2>Bästa Team</h2>
             <ul>
@@ -292,17 +367,20 @@ const Dashboard = () => {
             </ul>
           </div>
 
+          {/* ORG STATS */}
           <div className="org-sales-stats">
             <h2>Organisation Statistik</h2>
             <ul>
               {orgStats.map((org, index) => (
                 <li key={index}>
-                  {index + 1}. {org.orgName}: {org.totalSales} Avtal (Genomsnitt: {org.avgSales.toFixed(2)})
+                  {index + 1}. {org.orgName}: {org.totalSales} Avtal 
+                  (Genomsnitt: {org.avgSales.toFixed(2)})
                 </li>
               ))}
             </ul>
           </div>
 
+          {/* YESTERDAY STATS */}
           <div className="yesterday-stats">
             <h2>Gårdagens Statistik</h2>
             <ul>
@@ -314,6 +392,7 @@ const Dashboard = () => {
             </ul>
           </div>
 
+          {/* YESTERDAY ORG STATS */}
           <div className="yesterday-org-stats">
             <h2>Gårdagens Statistiska Organisationer</h2>
             <ul>

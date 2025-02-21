@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 import { useAuth } from '../auth';
-import './styles/UserDashboard.css'; // Förutsätter att du har lagt in den nya CSS-koden i denna fil
+import './styles/UserDashboard.css'; // Säkerställ att du har lagt in nödvändig CSS
 
 const UserDashboard = () => {
   const [userReports, setUserReports] = useState([]);
@@ -11,8 +11,10 @@ const UserDashboard = () => {
   const [topUsers, setTopUsers] = useState([]);
   const [topTeams, setTopTeams] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [userPercentageChange, setUserPercentageChange] = useState(0);
   const { currentUser } = useAuth();
 
+  // Returnerar start och slut för perioden (18:e → 17:e)
   const getCurrentPeriod = () => {
     const today = new Date();
     let start, end;
@@ -28,6 +30,16 @@ const UserDashboard = () => {
     return { start, end };
   };
 
+  // Beräknar antal dagar som har gått i nuvarande period
+  const getDaysElapsedInCurrentPeriod = (currentStart, currentEnd) => {
+    const today = new Date();
+    const effectiveToday = today > currentEnd ? currentEnd : today;
+    if (effectiveToday < currentStart) return 0;
+    const diffTime = effectiveToday.getTime() - currentStart.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    return diffDays;
+  };
+
   useEffect(() => {
     if (currentUser) {
       fetchData();
@@ -36,10 +48,16 @@ const UserDashboard = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    await Promise.all([fetchReports(), fetchTopUsers(), fetchTopTeams()]);
+    await Promise.all([
+      fetchReports(),
+      fetchTopUsers(),
+      fetchTopTeams(),
+      fetchPartialUserSales()
+    ]);
     setLoading(false);
   };
 
+  // Hämtar alla rapporter för inloggad användare (hela perioden)
   const fetchReports = async () => {
     if (!currentUser) return;
     const { start, end } = getCurrentPeriod();
@@ -51,10 +69,8 @@ const UserDashboard = () => {
           const reportDate = new Date(report.date);
           return reportDate >= start && reportDate <= end;
         });
-
       const total = reportsData.reduce((sum, report) => sum + parseFloat(report.sales || 0), 0);
       const avg = reportsData.length > 0 ? total / reportsData.length : 0;
-
       setUserReports(reportsData);
       setTotalSales(total);
       setAverageSales(avg);
@@ -63,12 +79,61 @@ const UserDashboard = () => {
     }
   };
 
+  // Hämtar partiell försäljning (för nuvarande respektive föregående period) för inloggad användare
+  const fetchPartialUserSales = async () => {
+    if (!currentUser) return;
+    const { start, end } = getCurrentPeriod();
+    const daysElapsed = getDaysElapsedInCurrentPeriod(start, end);
+
+    // Nuvarande period: räkna ut slutdatum för den partiella perioden
+    const partialEndCurrent = new Date(start.getTime() + (daysElapsed * 24 * 60 * 60 * 1000));
+    if (partialEndCurrent > end) {
+      partialEndCurrent.setTime(end.getTime());
+    }
+    partialEndCurrent.setHours(23, 59, 59, 999);
+
+    // Hämta rapporter för nuvarande partiella period
+    const reportsSnapshot = await getDocs(collection(db, `users/${currentUser.uid}/reports`));
+    const reportsData = reportsSnapshot.docs
+      .map(doc => doc.data())
+      .filter(report => {
+        const reportDate = new Date(report.date);
+        return reportDate >= start && reportDate <= partialEndCurrent;
+      });
+    const currentPartial = reportsData.reduce((sum, report) => sum + parseFloat(report.sales || 0), 0);
+
+    // Föregående period: flytta start och slut en månad bakåt
+    const previousStart = new Date(start);
+    previousStart.setMonth(previousStart.getMonth() - 1);
+    const previousEnd = new Date(end);
+    previousEnd.setMonth(previousEnd.getMonth() - 1);
+    const partialEndPrevious = new Date(previousStart.getTime() + (daysElapsed * 24 * 60 * 60 * 1000));
+    if (partialEndPrevious > previousEnd) {
+      partialEndPrevious.setTime(previousEnd.getTime());
+    }
+    partialEndPrevious.setHours(23, 59, 59, 999);
+
+    // Hämta rapporter för föregående partiella period
+    const prevReportsSnapshot = await getDocs(collection(db, `users/${currentUser.uid}/reports`));
+    const prevReportsData = prevReportsSnapshot.docs
+      .map(doc => doc.data())
+      .filter(report => {
+        const reportDate = new Date(report.date);
+        return reportDate >= previousStart && reportDate <= partialEndPrevious;
+      });
+    const previousPartial = prevReportsData.reduce((sum, report) => sum + parseFloat(report.sales || 0), 0);
+
+    let change = 0;
+    if (previousPartial > 0) {
+      change = ((currentPartial - previousPartial) / previousPartial) * 100;
+    }
+    setUserPercentageChange(change);
+  };
+
   const fetchTopUsers = async () => {
     const { start, end } = getCurrentPeriod();
     try {
-      const usersQuery = collection(db, 'users');
-      const usersSnapshot = await getDocs(usersQuery);
-
+      const usersSnapshot = await getDocs(collection(db, 'users'));
       const allUsers = usersSnapshot.docs.map(async (userDoc) => {
         const userId = userDoc.id;
         const userData = userDoc.data();
@@ -139,27 +204,49 @@ const UserDashboard = () => {
   };
 
   return (
-    <div className="dashboard-content"> 
-      {/* Huvudcontainer enligt din nya CSS-klasser */}
-
+    <div className="dashboard-content">
       <h1 className="dashboard-title">My Dashboard</h1>
-
       <button className="refresh-btn" onClick={fetchData}>
         {loading ? 'Laddar...' : 'Uppdatera Data'}
       </button>
 
       {loading ? (
-        <p>Laddar...</p> 
+        <p>Laddar...</p>
       ) : (
         <div className="dashboard-grid">
-          {/* Grid-layout för dina sektioner */}
-
-          <div className="total-sales-stats">
+          {/* Boxen "Mina försäljningsstatistik" med procentindikator i övre högra hörnet */}
+          <div className="total-sales-stats" style={{ position: 'relative' }}>
             <h2>Mina försäljningsstatistik</h2>
+            {/* Procentindikator */}
+            <div 
+              className="percentage-indicator"
+              style={{
+                position: 'absolute',
+                top: '10px',
+                right: '10px',
+                fontWeight: 'bold',
+                fontSize: '1rem'
+              }}
+            >
+              {userPercentageChange > 0 && (
+                <span style={{ color: 'green' }}>
+                  ▲ {userPercentageChange.toFixed(2)}%
+                </span>
+              )}
+              {userPercentageChange < 0 && (
+                <span style={{ color: 'red' }}>
+                  ▼ {Math.abs(userPercentageChange).toFixed(2)}%
+                </span>
+              )}
+              {userPercentageChange === 0 && (
+                <span>0%</span>
+              )}
+            </div>
             <p><strong>Totalt antal Avtal:</strong> {totalSales}</p>
             <p><strong>Genomsnittlig Avtal per rapport:</strong> {averageSales.toFixed(2)}</p>
           </div>
 
+          {/* Övriga sektioner */}
           <div className="top-users">
             <h2>Top 10 säljare</h2>
             <ul>

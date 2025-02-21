@@ -19,6 +19,7 @@
 
 .filter-table label {
   font-weight: bold;
+  margin-left: 60px;
 }
 
 .filter-table select,
@@ -98,12 +99,14 @@
 
 /* ========== Totalt Försäljning ========== */
 .total-sales {
-  margin: 20px 0;
-  margin-right: center;
+  display: table;
+  margin: 20px auto;
   text-align: center;
   font-weight: bold;
   font-size: 18px;
   color: #17a2b8;
+
+
 }
 
 /* ========== Totalt per Organisation ========== */

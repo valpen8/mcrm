@@ -20,7 +20,7 @@
   display: block;
   margin: 20px auto;
   padding: 12px 24px;
-  background: #3498db;
+  background: #a9acae;
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -31,7 +31,7 @@
 }
 
 .dashboard-content .refresh-btn:hover {
-  background: #2980b9;
+  background: #949fa7;
   transform: scale(1.05);
 }
 
@@ -121,4 +121,25 @@
 .dashboard-content .yesterday-stats:hover {
   transform: scale(1.02);
   box-shadow: 6px 6px 12px #d1d9e6, -6px -6px 12px #ffffff;
+}
+
+.ranking-up {
+  color: green;
+  margin-left: 8px;
+}
+
+.ranking-down {
+  color: red;
+  margin-left: 8px;
+}
+
+.ranking-same {
+  color: #777;
+  margin-left: 8px;
+}
+
+.new-indicator {
+  color: rgb(173, 173, 177);
+  margin-left: 8px;
+  font-weight: bold;
 }

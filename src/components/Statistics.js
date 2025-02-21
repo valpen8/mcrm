@@ -77,6 +77,219 @@ const Statistics = () => {
     setFilteredData(sortData(filteredData));
   };
 
+  // -------------------------------
+  // NY FUNKTION: Hämta ALL data för totaler
+  // Denna funktion hämtar hela datamängden (utan limit) baserat på datumintervall
+  // och applicerar även övriga (client-side) filter som t.ex. säljare och period.
+  const fetchAllDataForTotals = async () => {
+    try {
+      if (dataSource === 'salesSpecification') {
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        const usersDataArray = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const usersMap = {};
+        usersDataArray.forEach(user => { usersMap[user.id] = user; });
+
+        let totalsQuery;
+        if (startDate && endDate) {
+          totalsQuery = query(
+            collectionGroup(db, 'salesSpecifications'),
+            where('date', '>=', startDate),
+            where('date', '<=', endDate),
+            orderBy('date')
+          );
+        } else {
+          totalsQuery = query(
+            collectionGroup(db, 'salesSpecifications'),
+            orderBy('__name__')
+          );
+        }
+        const snapshot = await getDocs(totalsQuery);
+        const allData = [];
+        snapshot.forEach(specDoc => {
+          const specData = specDoc.data();
+          const period = specData.period || specDoc.id;
+          const parentRef = specDoc.ref.parent.parent;
+          const parentUserId = parentRef ? parentRef.id : null;
+          const userInfo = usersMap[parentUserId] || {};
+          allData.push({
+            period,
+            totalApproved: specData.totalApproved || 0,
+            salesperson: `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || 'N/A',
+            salesId: userInfo.salesId || 'N/A',
+            managerUid: userInfo.managerUid || '',
+            date: specData.date || period,
+            type: 'Sales Specification',
+            organisation: userInfo.organisation || 'N/A'
+          });
+        });
+
+        // Applicera övriga filter (t.ex. säljare och period) som görs client-side
+        let filtered = [...allData];
+        if (selectedManager) {
+          filtered = filtered.filter(item => item.managerUid === selectedManager);
+          const managerSalespersons = new Set(filtered.map(item => item.salesperson));
+          setSalespersons([...managerSalespersons]);
+        }
+        if (selectedSalesperson) {
+          filtered = filtered.filter(
+            item =>
+              item.name === selectedSalesperson ||
+              item.salesperson === selectedSalesperson
+          );
+        }
+        if (selectedPeriod) {
+          filtered = filtered.filter(item => item.period === selectedPeriod);
+        }
+        const sorted = sortData(filtered);
+        calculateTotalSales(sorted);
+        const totals = {};
+        sorted.forEach(item => {
+          const org = item.organisation || 'N/A';
+          const value = parseFloat(item.totalApproved || item.sales || item.total || 0);
+          totals[org] = (totals[org] || 0) + value;
+        });
+        setOrgTotals(totals);
+      } else if (dataSource === 'finalReport') {
+        let totalsQuery;
+        if (startDate && endDate) {
+          totalsQuery = selectedManager
+            ? query(
+                collection(db, 'finalReports'),
+                where('managerUid', '==', selectedManager),
+                where('date', '>=', startDate),
+                where('date', '<=', endDate),
+                orderBy('date')
+              )
+            : query(
+                collection(db, 'finalReports'),
+                where('date', '>=', startDate),
+                where('date', '<=', endDate),
+                orderBy('date')
+              );
+        } else {
+          totalsQuery = selectedManager
+            ? query(
+                collection(db, 'finalReports'),
+                where('managerUid', '==', selectedManager),
+                orderBy('date')
+              )
+            : query(
+                collection(db, 'finalReports'),
+                orderBy('date')
+              );
+        }
+        const snapshot = await getDocs(totalsQuery);
+        const allData = [];
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const reportId = doc.id;
+          Object.keys(data.salesData || {}).forEach(salesId => {
+            allData.push({
+              ...data.salesData[salesId],
+              date: data.date,
+              reportId,
+              managerUid: data.managerUid,
+              location: data.location || 'N/A',
+              organisation: data.organisation || 'N/A',
+              type: 'Final Report'
+            });
+          });
+        });
+        let filtered = [...allData];
+        if (selectedSalesperson) {
+          filtered = filtered.filter(
+            item =>
+              item.name === selectedSalesperson ||
+              item.salesperson === selectedSalesperson
+          );
+        }
+        if (selectedPeriod) {
+          filtered = filtered.filter(item => item.date === selectedPeriod);
+        }
+        const sorted = sortData(filtered);
+        calculateTotalSales(sorted);
+        const totals = {};
+        sorted.forEach(item => {
+          const org = item.organisation || 'N/A';
+          const value = parseFloat(item.totalApproved || item.sales || 0);
+          totals[org] = (totals[org] || 0) + value;
+        });
+        setOrgTotals(totals);
+      } else if (dataSource === 'kvalité') {
+        let totalsQuery;
+        if (startDate && endDate) {
+          totalsQuery = selectedManager
+            ? query(
+                collection(db, 'qualityReports'),
+                where('managerUid', '==', selectedManager),
+                where('date', '>=', startDate),
+                where('date', '<=', endDate),
+                orderBy('date')
+              )
+            : query(
+                collection(db, 'qualityReports'),
+                where('date', '>=', startDate),
+                where('date', '<=', endDate),
+                orderBy('date')
+              );
+        } else {
+          totalsQuery = selectedManager
+            ? query(
+                collection(db, 'qualityReports'),
+                where('managerUid', '==', selectedManager),
+                orderBy('date')
+              )
+            : query(
+                collection(db, 'qualityReports'),
+                orderBy('date')
+              );
+        }
+        const snapshot = await getDocs(totalsQuery);
+        const allData = [];
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const reportId = doc.id;
+          Object.entries(data.members || {}).forEach(([memberId, memberData]) => {
+            allData.push({
+              reportId,
+              date: data.date,
+              organisation: data.organisation || 'N/A',
+              managerUid: data.managerUid || '',
+              teamMember: memberData.name || 'N/A',
+              salesId: memberData.salesId || 'N/A',
+              regSales: memberData.regSales || 0,
+              invalidAmount: memberData.invalidAmount || 0,
+              outOfTarget: memberData.outOfTarget || 0,
+              pending: memberData.pending || 0,
+              total: memberData.total || 0,
+              assignedTo: data.assignedTo || [],
+              type: 'Quality Report'
+            });
+          });
+        });
+        let filtered = [...allData];
+        if (selectedSalesperson) {
+          filtered = filtered.filter(item => item.teamMember === selectedSalesperson);
+        }
+        if (selectedPeriod) {
+          filtered = filtered.filter(item => item.date === selectedPeriod);
+        }
+        const sorted = sortData(filtered);
+        calculateTotalSales(sorted);
+        const totals = {};
+        sorted.forEach(item => {
+          const org = item.organisation || 'N/A';
+          const value = parseFloat(item.total || 0);
+          totals[org] = (totals[org] || 0) + value;
+        });
+        setOrgTotals(totals);
+      }
+    } catch (error) {
+      console.error("Fel vid hämtning av totala data:", error);
+    }
+  };
+  // -------------------------------
+
   // Klientbaserad filtrering
   const handleFilterChange = () => {
     let filtered;
@@ -104,17 +317,17 @@ const Statistics = () => {
     }
 
     if (selectedPeriod) {
-      // För salesSpecification använder vi fältet "period"
       filtered = filtered.filter(item => item.period === selectedPeriod);
-    }
-
-    if (dataSource === 'finalReport' && selectedStatus) {
-      filtered = filtered.filter(item => item.status === selectedStatus);
     }
 
     const sorted = sortData(filtered);
     setFilteredData(sorted);
     calculateTotalSales(sorted);
+
+    // Om datum är valt – hämta ALL data för att räkna totalerna (utan att behöva trycka "Load More")
+    if(startDate && endDate){
+      fetchAllDataForTotals();
+    }
   };
 
   const handleResetFilters = () => {
@@ -137,10 +350,9 @@ const Statistics = () => {
     calculateTotalSales(resetData);
   };
 
-  // useEffect för att beräkna totalsumma per organisation
+  // useEffect för att beräkna totalsumma per organisation utifrån filteredData (gäller om inga datumfilter används)
   useEffect(() => {
     const totals = {};
-    // Gruppera posterna i filteredData baserat på organisation (använd 'N/A' om inget finns)
     filteredData.forEach(item => {
       const org = item.organisation || 'N/A';
       const value = parseFloat(item.totalApproved || item.sales || item.total || 0);
@@ -164,17 +376,13 @@ const Statistics = () => {
       try {
         if (dataSource === 'salesSpecification') {
           // --- SALES SPECIFICATION ---
-          // Hämta användardata för att mappa in användarinformation
           const usersSnapshot = await getDocs(collection(db, 'users'));
           const usersDataArray = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           const usersMap = {};
           usersDataArray.forEach(user => { usersMap[user.id] = user; });
 
-          // Använd collectionGroup för att hämta alla dokument från subkollektionen "salesSpecifications"
-          // Vi sorterar med orderBy('__name__') då vi antar att dokumentets ID representerar periodens namn
           let salesSpecsQuery;
           if (startDate && endDate) {
-            // Om du vill lägga till datumfilter här, säkerställ att dokumenten innehåller rätt fält
             salesSpecsQuery = query(
               collectionGroup(db, 'salesSpecifications'),
               where('date', '>=', startDate),
@@ -195,10 +403,8 @@ const Statistics = () => {
 
           salesSpecsSnapshot.forEach(specDoc => {
             const specData = specDoc.data();
-            // Om det finns ett fält "period" i dokumentet, använd det; annars använd dokumentets ID
             const period = specData.period || specDoc.id;
             periodSet.add(period);
-            // Hämta användardokumentet (föräldern) via specDoc.ref.parent.parent
             const parentRef = specDoc.ref.parent.parent;
             const parentUserId = parentRef ? parentRef.id : null;
             const userInfo = usersMap[parentUserId] || {};
@@ -208,7 +414,6 @@ const Statistics = () => {
               salesperson: `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim() || 'N/A',
               salesId: userInfo.salesId || 'N/A',
               managerUid: userInfo.managerUid || '',
-              // Använd fältet "date" från specData om det finns; annars fallback till period
               date: specData.date || period,
               type: 'Sales Specification',
               organisation: userInfo.organisation || 'N/A'
@@ -219,7 +424,6 @@ const Statistics = () => {
           setFilteredData(salesSpecificationsArray);
           setPeriods([...periodSet]);
           calculateTotalSales(salesSpecificationsArray);
-          // Hämta försäljningschefer från användardata
           const managersArray = usersDataArray.filter(user => user.role === 'sales-manager');
           setManagers(managersArray);
           setSalespersons([...new Set(salesSpecificationsArray.map(item => item.salesperson))]);
@@ -275,12 +479,10 @@ const Statistics = () => {
           setFilteredData(finalReportsArray);
           calculateTotalSales(finalReportsArray);
           setPeriods([...new Set(finalReportsArray.map(item => item.date))]);
-          // Hämta försäljningschefer
           const usersSnapshot = await getDocs(collection(db, 'users'));
           const usersDataArray = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           setManagers(usersDataArray.filter(user => user.role === 'sales-manager'));
           setSalespersons([...new Set(finalReportsArray.map(item => item.salesperson || item.name))]);
-          // Extrahera unika statusvärden för dropdownen "Välj Status"
           const statusSet = new Set(finalReportsArray.map(item => item.status));
           setStatusOptions([...statusSet]);
           console.log("Fetched Final Reports:", finalReportsArray);
@@ -341,7 +543,6 @@ const Statistics = () => {
           setFilteredData(qualityReportsArray);
           calculateTotalSales(qualityReportsArray);
           setPeriods([...new Set(qualityReportsArray.map(item => item.date))]);
-          // Hämta försäljningschefer
           const usersSnapshot = await getDocs(collection(db, 'users'));
           const usersDataArray = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           setManagers(usersDataArray.filter(user => user.role === 'sales-manager'));
