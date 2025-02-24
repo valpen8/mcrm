@@ -1,3 +1,4 @@
+// auth.js
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { getDoc, doc } from 'firebase/firestore';
@@ -19,15 +20,11 @@ export const AuthProvider = ({ children }) => {
       if (userDoc.exists()) {
         const userData = userDoc.data();
         console.log('User data fetched from Firestore: ', userData);
-
-        // Uppdatera currentUser med salesId och roll
         setCurrentUser({
           ...user,
-          salesId: userData.salesId || null,  // Se till att salesId finns
-          role: userData.role || null,        // Se till att role finns
+          salesId: userData.salesId || null,
+          role: userData.role || null,
         });
-
-        // Uppdatera rollen för användaren
         if (['user', 'sales-manager', 'admin', 'quality', 'uppdragsgivare'].includes(userData.role)) {
           setCurrentUserRole(userData.role);
         } else {
@@ -52,7 +49,7 @@ export const AuthProvider = ({ children }) => {
       if (user) {
         console.log('Inloggning lyckades, hämtar användarens data...');
         setCurrentUser(user);
-        await fetchUserData(user);  // Hämta roll och salesId
+        await fetchUserData(user);
       } else {
         console.log('Ingen användare inloggad.');
         setCurrentUser(null);
@@ -60,7 +57,6 @@ export const AuthProvider = ({ children }) => {
       }
       setIsLoading(false);
     });
-
     return unsubscribe;
   }, [isAddingUser]);
 
@@ -69,7 +65,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ currentUser, currentUserRole, fetchUserData, isAddingUser, setIsAddingUser }}>
+    <AuthContext.Provider value={{ currentUser, currentUserRole, isLoading, fetchUserData, isAddingUser, setIsAddingUser }}>
       {children}
     </AuthContext.Provider>
   );

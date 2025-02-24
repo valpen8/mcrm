@@ -1,3 +1,4 @@
+// Login.js
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
@@ -5,10 +6,9 @@ import { auth, db } from '../firebaseConfig';
 import { getDoc, doc } from 'firebase/firestore';
 import MC_logo_dark from '../img/MC_logo_dark.png';
 import './styles/Login.css';
-import './styles/Modal.css'; // CSS för modalen
+import './styles/Modal.css';
 
 const Login = () => {
-  // State för inloggning
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
@@ -20,33 +20,37 @@ const Login = () => {
   const [resetMessage, setResetMessage] = useState('');
   const [resetError, setResetError] = useState('');
 
+  // Den automatiska inloggningen togs bort – nu sker inloggning endast via handleLogin
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError(null);
 
     try {
-      // Försök logga in
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-
-      // Hämta användardokumentet från Firestore
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       const role = userDoc.data()?.role;
 
-      // Navigera baserat på roll
-      if (role === 'admin') {
-        navigate('/admin/dashboard');
-      } else if (role === 'user') {
-        navigate('/user/dashboard');
-      } else if (role === 'sales-manager') {
-        navigate('/sales-manager/dashboard');
-      } else if (role === 'quality') {
-        navigate('/quality/dashboard');
-      } else if (role === 'uppdragsgivare') {
-        navigate('/uppdragsgivare/dashboard');
-      } else {
+      if (!role) {
         setError('Ingen giltig roll hittades för användaren.');
+        return;
       }
+
+      // Fördröjning för att undvika att iOS öppnar en ny flik – navigera internt
+      setTimeout(() => {
+        if (role === 'admin') {
+          navigate('/admin/dashboard', { replace: true });
+        } else if (role === 'user') {
+          navigate('/user/dashboard', { replace: true });
+        } else if (role === 'sales-manager') {
+          navigate('/sales-manager/dashboard', { replace: true });
+        } else if (role === 'quality') {
+          navigate('/quality/dashboard', { replace: true });
+        } else if (role === 'uppdragsgivare') {
+          navigate('/uppdragsgivare/dashboard', { replace: true });
+        }
+      }, 500);
     } catch (error) {
       setError('Fel vid inloggning: ' + error.message);
     }
@@ -67,7 +71,6 @@ const Login = () => {
 
   const closeModal = () => {
     setShowForgotPasswordModal(false);
-    // Återställ modalens state
     setResetEmail('');
     setResetMessage('');
     setResetError('');
@@ -97,7 +100,6 @@ const Login = () => {
           <button type="submit">Logga in</button>
         </form>
         {error && <p style={{ color: 'red' }}>{error}</p>}
-        {/* Istället för en länk till en separat sida, öppna modalen */}
         <button 
           className="forgot-password-btn" 
           onClick={() => setShowForgotPasswordModal(true)}
@@ -106,7 +108,6 @@ const Login = () => {
         </button>
       </div>
 
-      {/* Rendera modalen som popup om showForgotPasswordModal är true */}
       {showForgotPasswordModal && (
         <div className="modal-overlay">
           <div className="modal-content">
