@@ -11,14 +11,22 @@ const Dashboard = () => {
   const [orgStats, setOrgStats] = useState([]);
   const [yesterdayStats, setYesterdayStats] = useState([]);
   const [yesterdayOrgStats, setYesterdayOrgStats] = useState([]);
+  const [finalReportsStatus, setFinalReportsStatus] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // För försäljningsjämförelse (visas som procent i övre högra hörnet)
+  // För försäljningsjämförelse (procentindikator)
   const [partialSales, setPartialSales] = useState(0);
   const [previousPartialSales, setPreviousPartialSales] = useState(0);
   const [percentageChange, setPercentageChange] = useState(0);
 
-  // Returnerar start och slut för innevarande period (18:e → 17:e)
+  // --- Popup-state ---
+  const [modalOpen, setModalOpen] = useState(false);
+  // Här sparas ett objekt med två fält: sellers (array) och totalSales (från rapporten)
+  const [modalData, setModalData] = useState({ sellers: [], totalSales: 0 });
+  const [modalManagerName, setModalManagerName] = useState('');
+  // --- SLUT Popup-state ---
+
+  // Returnerar start och slut för nuvarande period (18:e → 17:e)
   const getCurrentPeriod = () => {
     const today = new Date();
     let start, end;
@@ -46,7 +54,7 @@ const Dashboard = () => {
     return { start, end };
   };
 
-  // Hur många dagar har gått i nuvarande period (18:e → i dag, eller 17:e om perioden redan är slut)
+  // Beräknar antal dagar som gått i nuvarande period (18:e → i dag, eller 17:e om perioden redan är slut)
   const getDaysElapsedInCurrentPeriod = (currentStart, currentEnd) => {
     const today = new Date();
     const effectiveToday = today > currentEnd ? currentEnd : today;
@@ -83,13 +91,13 @@ const Dashboard = () => {
       fetchTopTeams(),
       fetchOrgStats(),
       fetchYesterdayStats(),
-      fetchYesterdayOrgStats()
+      fetchYesterdayOrgStats(),
+      fetchFinalReportsStatus() // Hämtar slutrapporter-status med datum
     ]);
     setLoading(false);
   };
 
-  // Uppdaterad funktion som hämtar totala försäljningen och även beräknar den partiella försäljningen
-  // samt den procentuella skillnaden mot föregående period.
+  // Hämtar total försäljning, partiell försäljning och procentuell skillnad
   const fetchTotalSales = async () => {
     const { start: currentStart, end: currentEnd } = getCurrentPeriod();
     try {
@@ -105,10 +113,7 @@ const Dashboard = () => {
       setTotalSales(total);
       setAverageSales(avg);
 
-      // Hur många dagar har passerat i nuvarande period?
       const daysElapsed = getDaysElapsedInCurrentPeriod(currentStart, currentEnd);
-
-      // Partiell försäljning: från periodens start till idag (eller 17:e om perioden redan är slut)
       const partialEndCurrent = new Date(currentStart.getTime() + (daysElapsed * 24 * 60 * 60 * 1000));
       if (partialEndCurrent > currentEnd) {
         partialEndCurrent.setTime(currentEnd.getTime());
@@ -117,7 +122,6 @@ const Dashboard = () => {
       const currentPartial = await fetchPartialSales(currentStart, partialEndCurrent);
       setPartialSales(currentPartial);
 
-      // Motsvarande intervall för föregående period
       const previousStart = new Date(currentStart);
       previousStart.setMonth(previousStart.getMonth() - 1);
       const previousEnd = new Date(currentEnd);
@@ -135,7 +139,6 @@ const Dashboard = () => {
         change = ((currentPartial - prevPartial) / prevPartial) * 100;
       }
       setPercentageChange(change);
-
     } catch (error) {
       console.error("Error fetching total sales:", error);
     }
@@ -195,7 +198,7 @@ const Dashboard = () => {
         const managerDoc = await getDocs(query(collection(db, 'users'), where('__name__', '==', managerId)));
         const managerData = managerDoc.docs[0]?.data();
         const managerName = managerData ? `${managerData.firstName} ${managerData.lastName}` : managerId;
-        return { managerName, totalSales };
+        return { managerId, managerName, totalSales };
       });
       const resolvedTeams = await Promise.all(teamPromises);
       const sortedTeams = resolvedTeams.sort((a, b) => b.totalSales - a.totalSales).slice(0, 5);
@@ -293,7 +296,84 @@ const Dashboard = () => {
     }
   };
 
-  // --- Beräkna tidsmässig progression i perioden ---
+  // Hämtar status på slutrapporter per sales manager (inkl. rapportdatum)
+  const fetchFinalReportsStatus = async () => {
+    const { start, end } = getYesterdayPeriod();
+    try {
+      const yesterdaySnapshot = await getDocs(collection(db, 'finalReports'));
+      const yesterdayData = yesterdaySnapshot.docs
+        .map(doc => ({ ...doc.data(), id: doc.id }))
+        .filter(report => {
+          const reportDate = new Date(report.date);
+          return reportDate >= start && reportDate <= end;
+        });
+      
+      const reportedReportsMap = new Map();
+      yesterdayData.forEach(report => {
+        reportedReportsMap.set(report.managerUid, report.date);
+      });
+      
+      const { start: currentStart, end: currentEnd } = getCurrentPeriod();
+      const currentSnapshot = await getDocs(collection(db, 'finalReports'));
+      const currentData = currentSnapshot.docs
+        .map(doc => ({ ...doc.data(), id: doc.id }))
+        .filter(report => {
+          const reportDate = new Date(report.date);
+          return reportDate >= currentStart && reportDate <= currentEnd;
+        });
+      
+      const managerMap = {};
+      currentData.forEach(report => {
+        if (!managerMap[report.managerUid]) {
+          managerMap[report.managerUid] = report;
+        }
+      });
+      
+      const managerStatusPromises = Object.entries(managerMap).map(async ([managerId, report]) => {
+        const managerDocSnapshot = await getDocs(query(collection(db, 'users'), where('__name__', '==', managerId)));
+        const managerData = managerDocSnapshot.docs[0]?.data();
+        const managerName = managerData ? `${managerData.firstName} ${managerData.lastName}` : managerId;
+        return {
+          managerId,
+          managerName,
+          reportedYesterday: reportedReportsMap.has(managerId),
+          reportDate: reportedReportsMap.get(managerId) || null
+        };
+      });
+      const managerStatus = await Promise.all(managerStatusPromises);
+      setFinalReportsStatus(managerStatus);
+    } catch (error) {
+      console.error("Error fetching final report status:", error);
+    }
+  };
+
+  // --- Popup: Öppna modal med säljarinformation från finalrapport ---
+  const openModal = async (managerId, managerName) => {
+    const { start, end } = getYesterdayPeriod();
+    try {
+      const reportQuery = query(
+        collection(db, 'finalReports'),
+        where('managerUid', '==', managerId),
+        where('date', '>=', start.toISOString()),
+        where('date', '<=', end.toISOString())
+      );
+      const reportSnapshot = await getDocs(reportQuery);
+      if (!reportSnapshot.empty) {
+        const reportData = reportSnapshot.docs[0].data();
+        // Omvandla salesData (map) till en array med säljarobjekt
+        const sellersArray = reportData.salesData ? Object.values(reportData.salesData) : [];
+        setModalData({ sellers: sellersArray, totalSales: reportData.totalSales });
+      } else {
+        setModalData({ sellers: [], totalSales: 0 });
+      }
+      setModalManagerName(managerName);
+      setModalOpen(true);
+    } catch (error) {
+      console.error("Error fetching report details:", error);
+    }
+  };
+  // --- SLUT Popup ---
+
   const { start: currentStart, end: currentEnd } = getCurrentPeriod();
   const totalDaysInPeriod = Math.floor((currentEnd.getTime() - currentStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
   const daysElapsed = getDaysElapsedInCurrentPeriod(currentStart, currentEnd);
@@ -310,7 +390,6 @@ const Dashboard = () => {
           {/* TOTAL SALES-STATS */}
           <div className="total-sales-stats" style={{ position: 'relative' }}>
             <h2>Total Statistik</h2>
-            {/* Procentindikator (för försäljningsjämförelse) i övre högra hörnet */}
             <div 
               className="percentage-indicator"
               style={{
@@ -331,13 +410,10 @@ const Dashboard = () => {
                   ▼ {Math.abs(percentageChange).toFixed(2)}%
                 </span>
               )}
-              {percentageChange === 0 && (
-                <span>0%</span>
-              )}
+              {percentageChange === 0 && <span>0%</span>}
             </div>
             <p><strong>Totalt antal Avtal:</strong> {totalSales}</p>
             <p><strong>Genomsnittlig Avtal per rapport:</strong> {averageSales.toFixed(2)}</p>
-            {/* Progressbar som visar tidsmässig progression i perioden */}
             <div className="progress-bar-container">
               <div className="progress-bar" style={{ width: `${timeProgress.toFixed(1)}%` }} />
             </div>
@@ -360,7 +436,11 @@ const Dashboard = () => {
             <h2>Bästa Team</h2>
             <ul>
               {topTeams.map((team, index) => (
-                <li key={index}>
+                <li 
+                  key={index}
+                  onClick={() => team.totalSales > 0 && openModal(team.managerId, team.managerName)}
+                  style={{ cursor: team.totalSales > 0 ? 'pointer' : 'default' }}
+                >
                   {index + 1}. {team.managerName}: {team.totalSales} Avtal
                 </li>
               ))}
@@ -402,6 +482,51 @@ const Dashboard = () => {
                 </li>
               ))}
             </ul>
+          </div>
+
+          {/* SLUTRAPPORTER */}
+          <div className="final-reports">
+            <h2>Slutrapporter</h2>
+            <ul>
+              {finalReportsStatus.map((manager, index) => (
+                <li 
+                  key={index} 
+                  onClick={() => manager.reportedYesterday && openModal(manager.managerId, manager.managerName)}
+                  style={{ cursor: manager.reportedYesterday ? 'pointer' : 'default' }}
+                >
+                  {manager.managerName}{' '}
+                  {manager.reportedYesterday ? (
+                    <span style={{ color: 'green' }}>
+                      ✔️ {new Date(manager.reportDate).toLocaleDateString()}
+                    </span>
+                  ) : (
+                    <span style={{ color: 'red' }}>❌</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* Popup Modal */}
+      {modalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2>{modalManagerName} - Säljarinformation</h2>
+            <p><strong>Total försäljning:</strong> {modalData.totalSales}</p>
+            {modalData.sellers.length > 0 ? (
+              <ul>
+                {modalData.sellers.map((seller, idx) => (
+                  <li key={idx}>
+                    {seller.name} – {seller.sales} avtal – Status: {seller.status}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>Inga säljaruppgifter finns.</p>
+            )}
+            <button className="refresh-btn" onClick={() => setModalOpen(false)}>Stäng</button>
           </div>
         </div>
       )}

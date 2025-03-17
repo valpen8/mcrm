@@ -46,7 +46,52 @@ const Statistics = () => {
   const [lastQualityReportDoc, setLastQualityReportDoc] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
+  // NYA state för attendance (Närvarande, Sjuka, Lediga)
+  const [presentCount, setPresentCount] = useState(0);
+  const [sickCount, setSickCount] = useState(0);
+  const [vacantCount, setVacantCount] = useState(0);
+
   const { currentUser } = useAuth();
+
+  // -----------------------------
+  // Uppdatera säljare dropdown baserat på vald försäljningschef och aktuellt datasource
+  useEffect(() => {
+    if (dataSource === 'salesSpecification') {
+      if (selectedManager) {
+        const managerSalespersons = new Set(
+          salesData.filter(item => item.managerUid === selectedManager)
+                   .map(item => item.salesperson)
+        );
+        setSalespersons([...managerSalespersons]);
+      } else {
+        const allSalespersons = new Set(salesData.map(item => item.salesperson));
+        setSalespersons([...allSalespersons]);
+      }
+    } else if (dataSource === 'finalReport') {
+      if (selectedManager) {
+        const managerSalespersons = new Set(
+          finalReports.filter(item => item.managerUid === selectedManager)
+                      .map(item => item.salesperson || item.name)
+        );
+        setSalespersons([...managerSalespersons]);
+      } else {
+        const allSalespersons = new Set(finalReports.map(item => item.salesperson || item.name));
+        setSalespersons([...allSalespersons]);
+      }
+    } else if (dataSource === 'kvalité') {
+      if (selectedManager) {
+        const managerSalespersons = new Set(
+          qualityReportsData.filter(item => item.managerUid === selectedManager)
+                            .map(item => item.teamMember)
+        );
+        setSalespersons([...managerSalespersons]);
+      } else {
+        const allSalespersons = new Set(qualityReportsData.map(item => item.teamMember));
+        setSalespersons([...allSalespersons]);
+      }
+    }
+  }, [selectedManager, salesData, finalReports, qualityReportsData, dataSource]);
+  // -----------------------------
 
   // Funktion för att räkna total försäljning (alla poster)
   const calculateTotalSales = (data) => {
@@ -77,10 +122,7 @@ const Statistics = () => {
     setFilteredData(sortData(filteredData));
   };
 
-  // -------------------------------
-  // NY FUNKTION: Hämta ALL data för totaler
-  // Denna funktion hämtar hela datamängden (utan limit) baserat på datumintervall
-  // och applicerar även övriga (client-side) filter som t.ex. säljare och period.
+  // Funktion för att hämta ALL data (utan limit) för totaler
   const fetchAllDataForTotals = async () => {
     try {
       if (dataSource === 'salesSpecification') {
@@ -123,7 +165,6 @@ const Statistics = () => {
           });
         });
 
-        // Applicera övriga filter (t.ex. säljare och period) som görs client-side
         let filtered = [...allData];
         if (selectedManager) {
           filtered = filtered.filter(item => item.managerUid === selectedManager);
@@ -288,7 +329,6 @@ const Statistics = () => {
       console.error("Fel vid hämtning av totala data:", error);
     }
   };
-  // -------------------------------
 
   // Klientbaserad filtrering
   const handleFilterChange = () => {
@@ -316,6 +356,13 @@ const Statistics = () => {
       );
     }
 
+    // Filtrera efter status (gäller endast finalReport)
+    if (dataSource === 'finalReport' && selectedStatus) {
+      filtered = filtered.filter(item => {
+        return item.status && item.status.trim().toLowerCase() === selectedStatus.trim().toLowerCase();
+      });
+    }
+
     if (selectedPeriod) {
       filtered = filtered.filter(item => item.period === selectedPeriod);
     }
@@ -324,8 +371,7 @@ const Statistics = () => {
     setFilteredData(sorted);
     calculateTotalSales(sorted);
 
-    // Om datum är valt – hämta ALL data för att räkna totalerna (utan att behöva trycka "Load More")
-    if(startDate && endDate){
+    if (startDate && endDate) {
       fetchAllDataForTotals();
     }
   };
@@ -350,7 +396,6 @@ const Statistics = () => {
     calculateTotalSales(resetData);
   };
 
-  // useEffect för att beräkna totalsumma per organisation utifrån filteredData (gäller om inga datumfilter används)
   useEffect(() => {
     const totals = {};
     filteredData.forEach(item => {
@@ -361,18 +406,68 @@ const Statistics = () => {
     setOrgTotals(totals);
   }, [filteredData]);
 
-  // Hämta data från Firestore
+  // NY FUNKTION: Hämta attendance-statistik från finalReports utan paginering.
+  // Hämtar ALL finalReport-dokument baserat på datum och vald salesmanager och räknar antalet poster med status "Närvarande", "Sjuk/Sjuka" och "Ledig/Lediga".
+  const fetchAttendanceStats = async () => {
+    try {
+      if (dataSource === 'finalReport' && startDate && endDate) {
+        let attendanceQuery;
+        if (selectedManager) {
+          attendanceQuery = query(
+            collection(db, 'finalReports'),
+            where('managerUid', '==', selectedManager),
+            where('date', '>=', startDate),
+            where('date', '<=', endDate)
+          );
+        } else {
+          attendanceQuery = query(
+            collection(db, 'finalReports'),
+            where('date', '>=', startDate),
+            where('date', '<=', endDate)
+          );
+        }
+        const snapshot = await getDocs(attendanceQuery);
+        let totalPresent = 0, totalSick = 0, totalVacant = 0;
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const entries = Object.values(data.salesData || {});
+          entries.forEach(entry => {
+            const status = entry.status ? entry.status.trim().toLowerCase() : "";
+            if (status === "närvarande") {
+              totalPresent++;
+            } else if (status === "sjuk" || status === "sjuka") {
+              totalSick++;
+            } else if (status === "ledig" || status === "lediga") {
+              totalVacant++;
+            }
+          });
+        });
+        setPresentCount(totalPresent);
+        setSickCount(totalSick);
+        setVacantCount(totalVacant);
+      } else {
+        setPresentCount(0);
+        setSickCount(0);
+        setVacantCount(0);
+      }
+    } catch (error) {
+      console.error("Fel vid hämtning av attendance-statistik:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchAttendanceStats();
+  }, [startDate, endDate, selectedManager, dataSource]);
+
   useEffect(() => {
     const fetchData = async () => {
       if (!currentUser) {
         console.log("Ingen inloggad användare");
         return;
       }
-      // Återställ pagination vid filterändring
       setLastSalesSpecDoc(null);
       setLastFinalReportDoc(null);
       setLastQualityReportDoc(null);
-
       try {
         if (dataSource === 'salesSpecification') {
           // --- SALES SPECIFICATION ---
@@ -380,7 +475,6 @@ const Statistics = () => {
           const usersDataArray = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           const usersMap = {};
           usersDataArray.forEach(user => { usersMap[user.id] = user; });
-
           let salesSpecsQuery;
           if (startDate && endDate) {
             salesSpecsQuery = query(
@@ -400,7 +494,6 @@ const Statistics = () => {
           const salesSpecsSnapshot = await getDocs(salesSpecsQuery);
           const salesSpecificationsArray = [];
           const periodSet = new Set();
-
           salesSpecsSnapshot.forEach(specDoc => {
             const specData = specDoc.data();
             const period = specData.period || specDoc.id;
@@ -554,11 +647,9 @@ const Statistics = () => {
       }
     };
 
-    // Lägg till dependency: currentUser, dataSource, startDate, endDate, selectedManager
     fetchData();
   }, [currentUser, dataSource, startDate, endDate, selectedManager]);
 
-  // Funktionen loadMoreData – behåll din befintliga logik
   const loadMoreData = async () => {
     if (loadingMore) return;
     setLoadingMore(true);
@@ -847,34 +938,47 @@ const Statistics = () => {
         </tbody>
       </table>
 
-      {/* Totalt Försäljning (globalt) */}
-      <div className="total-sales">
-        <h3>Totalt Försäljning: {totalSales}</h3>
-      </div>
+      <div className="statistics-cards">
+        {/* Totalt Försäljning */}
+        <div className="statistics-card total-sales-card">
+          <h3>Totalt Försäljning</h3>
+          <p>{totalSales}</p>
+        </div>
 
-      {/* Totalt per Organisation */}
-      <div className="org-totals">
-        <h3>Totalt per Organisation:</h3>
-        {Object.keys(orgTotals).length === 0 ? (
-          <p>Ingen data tillgänglig</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Organisation</th>
-                <th>Försäljning</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(orgTotals).map(([org, total]) => (
-                <tr key={org}>
-                  <td>{org}</td>
-                  <td>{total}</td>
+        {/* Totalt per Organisation */}
+        <div className="statistics-card org-totals-card">
+          <h3>Totalt per Organisation</h3>
+          {Object.keys(orgTotals).length === 0 ? (
+            <p>Ingen data tillgänglig</p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Organisation</th>
+                  <th>Försäljning</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+              </thead>
+              <tbody>
+                {Object.entries(orgTotals).map(([org, total]) => (
+                  <tr key={org}>
+                    <td>{org}</td>
+                    <td>{total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Ny box för Närvaro, Sjuka och Lediga (attendance) */}
+        <div className="statistics-card attendance-card">
+          <h3>Närvaro & Hälsa</h3>
+          <ul>
+            <li>Närvarande: {presentCount}</li>
+            <li>Sjuka: {sickCount}</li>
+            <li>Lediga: {vacantCount}</li>
+          </ul>
+        </div>
       </div>
 
       {/* Resultattabell */}

@@ -16,6 +16,11 @@ const SalesManagerDashboard = () => {
   const [yesterdayStats, setYesterdayStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [teamPercentageChange, setTeamPercentageChange] = useState(0);
+  
+  // === NYTT ===
+  const [finalReportsStatus, setFinalReportsStatus] = useState([]);
+  // === SLUT NYTT ===
+
   const { currentUser } = useAuth();
 
   // Period mellan 18:e och 17:e
@@ -46,7 +51,7 @@ const SalesManagerDashboard = () => {
     return { start, end };
   };
 
-  // Beräknar antal dagar som har gått i nuvarande period (18:e -> idag, eller 17:e om perioden är slut)
+  // Beräknar antal dagar som gått i nuvarande period
   const getDaysElapsedInCurrentPeriod = (currentStart, currentEnd) => {
     const today = new Date();
     const effectiveToday = today > currentEnd ? currentEnd : today;
@@ -84,7 +89,10 @@ const SalesManagerDashboard = () => {
       fetchTeamData(),
       fetchTopUsers(),
       fetchTopTeams(),
-      fetchYesterdayStats()
+      fetchYesterdayStats(),
+      // === NYTT ===
+      fetchFinalReportsStatus()
+      // === SLUT NYTT ===
     ]);
     setLoading(false);
   };
@@ -144,7 +152,7 @@ const SalesManagerDashboard = () => {
     }
   };
 
-  // Hämtar data för hela teamet och beräknar även den partiella försäljningen för att kunna räkna ut procentförändring
+  // Hämtar data för hela teamet
   const fetchTeamData = async () => {
     if (!currentUser) return;
     const { start, end } = getCurrentPeriod();
@@ -152,7 +160,7 @@ const SalesManagerDashboard = () => {
       const teamQuery = query(collection(db, 'users'), where('managerUid', '==', currentUser.uid));
       const teamSnapshot = await getDocs(teamQuery);
 
-      // Hämta fullständig data för varje teammedlem (inklusive userId för senare användning)
+      // Hämta fullständig data för varje teammedlem
       const teamData = await Promise.all(
         teamSnapshot.docs.map(async (userDoc) => {
           const userId = userDoc.id;
@@ -178,7 +186,7 @@ const SalesManagerDashboard = () => {
       setTotalTeamSales(totalSalesForTeam);
       setAverageTeamSales(averageSalesForTeam);
 
-      // Beräkna antal dagar som gått i nuvarande period och definiera partiella intervall
+      // Beräkna partiell försäljning för att räkna ut procentförändring
       const daysElapsed = getDaysElapsedInCurrentPeriod(start, end);
       const partialEndCurrent = new Date(start.getTime() + (daysElapsed * 24 * 60 * 60 * 1000));
       if (partialEndCurrent > end) {
@@ -197,7 +205,7 @@ const SalesManagerDashboard = () => {
       }
       partialEndPrevious.setHours(23, 59, 59, 999);
 
-      // Hämta den partiella försäljningen för varje teammedlem för nuvarande och föregående period
+      // Hämta partiell försäljning för varje teammedlem nu och föregående period
       const partialSalesPromises = teamData.map(async (member) => {
         const currentPartial = await fetchPartialSalesForTeamMember(member.userId, start, partialEndCurrent);
         const previousPartial = await fetchPartialSalesForTeamMember(member.userId, previousStart, partialEndPrevious);
@@ -285,10 +293,72 @@ const SalesManagerDashboard = () => {
     }
   };
 
+  // === NYTT: Hämtar status på slutrapporter per sales manager (inkl. rapportdatum) ===
+  const fetchFinalReportsStatus = async () => {
+    const { start, end } = getYesterdayPeriod();
+    try {
+      // Hämta alla rapporter för igår
+      const yesterdaySnapshot = await getDocs(collection(db, 'finalReports'));
+      const yesterdayData = yesterdaySnapshot.docs
+        .map(doc => ({ ...doc.data(), id: doc.id }))
+        .filter(report => {
+          const reportDate = new Date(report.date);
+          return reportDate >= start && reportDate <= end;
+        });
+      
+      // Karta: managerUid -> datumet för den rapporten
+      const reportedReportsMap = new Map();
+      yesterdayData.forEach(report => {
+        reportedReportsMap.set(report.managerUid, report.date);
+      });
+
+      // Hämta rapporter för den aktuella perioden (för att få alla "aktiva" managerUid)
+      const { start: currentStart, end: currentEnd } = getCurrentPeriod();
+      const currentSnapshot = await getDocs(collection(db, 'finalReports'));
+      const currentData = currentSnapshot.docs
+        .map(doc => ({ ...doc.data(), id: doc.id }))
+        .filter(report => {
+          const reportDate = new Date(report.date);
+          return reportDate >= currentStart && reportDate <= currentEnd;
+        });
+      
+      // Gruppera rapporterna på managerUid för att få unika managers
+      const managerMap = {};
+      currentData.forEach(report => {
+        if (!managerMap[report.managerUid]) {
+          managerMap[report.managerUid] = report;
+        }
+      });
+
+      // Hämta information om varje manager
+      const managerStatusPromises = Object.entries(managerMap).map(async ([managerId, report]) => {
+        const managerDocSnapshot = await getDocs(
+          query(collection(db, 'users'), where('__name__', '==', managerId))
+        );
+        const managerData = managerDocSnapshot.docs[0]?.data();
+        const managerName = managerData
+          ? `${managerData.firstName} ${managerData.lastName}`
+          : managerId;
+        return {
+          managerId,
+          managerName,
+          reportedYesterday: reportedReportsMap.has(managerId),
+          reportDate: reportedReportsMap.get(managerId) || null
+        };
+      });
+      const managerStatus = await Promise.all(managerStatusPromises);
+      setFinalReportsStatus(managerStatus);
+    } catch (error) {
+      console.error("Error fetching final report status:", error);
+    }
+  };
+  // === SLUT NYTT ===
+
   return (
     <div className="sales-manager-dashboard">
       <h1 className="dashboard-title">Dashboard</h1>
       <button className="refresh-btn" onClick={fetchData}>Uppdatera Data</button>
+
       {loading ? (
         <p>Laddar...</p>
       ) : (
@@ -296,7 +366,6 @@ const SalesManagerDashboard = () => {
           {/* TEAM STATISTIK-BOX */}
           <div className="team-sales-stats" style={{ position: 'relative' }}>
             <h2>Team Statistik</h2>
-            {/* Procentindikator i övre högra hörnet */}
             <div 
               className="percentage-indicator"
               style={{
@@ -367,6 +436,26 @@ const SalesManagerDashboard = () => {
               ))}
             </ul>
           </div>
+
+          {/* === NYTT: Slutrapporter === */}
+          <div className="final-reports">
+            <h2>Slutrapporter</h2>
+            <ul>
+              {finalReportsStatus.map((manager, index) => (
+                <li key={index}>
+                  {manager.managerName}{' '}
+                  {manager.reportedYesterday ? (
+                    <span style={{ color: 'green' }}>
+                      ✔️ {new Date(manager.reportDate).toLocaleDateString()}
+                    </span>
+                  ) : (
+                    <span style={{ color: 'red' }}>❌</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+          {/* === SLUT NYTT === */}
         </>
       )}
     </div>

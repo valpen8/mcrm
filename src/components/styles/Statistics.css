@@ -336,3 +336,38 @@
     padding-right: 5px;
   }
 }
+
+/* Container för totalsummorna med boxar */
+.statistics-cards {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+/* Mindre boxar med fast bredd och höjd */
+.statistics-card {
+  flex: 0 0 250px; /* Fast bredd */
+  height: 150px;   /* Fast höjd – justera vid behov */
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  overflow-y: auto; /* Lägger till scrollbar om innehållet överstiger höjden */
+}
+
+/* Rubrikstil i boxarna */
+.statistics-card h3 {
+  margin: 0 0 10px;
+  color: #17a2b8;
+  font-size: 18px;
+  text-align: center;
+}
+
+/* Valfri styling för innehållet */
+.statistics-card p,
+.statistics-card table {
+  text-align: center;
+  margin: 0;
+}
