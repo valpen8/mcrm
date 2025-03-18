@@ -21,7 +21,7 @@ const Dashboard = () => {
 
   // --- Popup-state ---
   const [modalOpen, setModalOpen] = useState(false);
-  // Här sparas ett objekt med två fält: sellers (array) och totalSales (från rapporten)
+  // Objekt med två fält: sellers (array) och totalSales (från rapporten)
   const [modalData, setModalData] = useState({ sellers: [], totalSales: 0 });
   const [modalManagerName, setModalManagerName] = useState('');
   // --- SLUT Popup-state ---
@@ -296,10 +296,13 @@ const Dashboard = () => {
     }
   };
 
-  // Hämtar status på slutrapporter per sales manager (inkl. rapportdatum)
+  // --- Uppdaterad fetchFinalReportsStatus ---
+  // Hämtar ALLA sales managers från "users" där role är "sales-manager" oavsett om de lämnat in en rapport igår.
+  // Markerar med grönt om de har rapporterat igår, annars rött kryss.
   const fetchFinalReportsStatus = async () => {
     const { start, end } = getYesterdayPeriod();
     try {
+      // Hämta alla rapporter från igår
       const yesterdaySnapshot = await getDocs(collection(db, 'finalReports'));
       const yesterdayData = yesterdaySnapshot.docs
         .map(doc => ({ ...doc.data(), id: doc.id }))
@@ -308,44 +311,33 @@ const Dashboard = () => {
           return reportDate >= start && reportDate <= end;
         });
       
+      // Skapa en karta med managerUid -> rapportdatum från igår
       const reportedReportsMap = new Map();
       yesterdayData.forEach(report => {
         reportedReportsMap.set(report.managerUid, report.date);
       });
       
-      const { start: currentStart, end: currentEnd } = getCurrentPeriod();
-      const currentSnapshot = await getDocs(collection(db, 'finalReports'));
-      const currentData = currentSnapshot.docs
-        .map(doc => ({ ...doc.data(), id: doc.id }))
-        .filter(report => {
-          const reportDate = new Date(report.date);
-          return reportDate >= currentStart && reportDate <= currentEnd;
-        });
-      
-      const managerMap = {};
-      currentData.forEach(report => {
-        if (!managerMap[report.managerUid]) {
-          managerMap[report.managerUid] = report;
-        }
-      });
-      
-      const managerStatusPromises = Object.entries(managerMap).map(async ([managerId, report]) => {
-        const managerDocSnapshot = await getDocs(query(collection(db, 'users'), where('__name__', '==', managerId)));
-        const managerData = managerDocSnapshot.docs[0]?.data();
-        const managerName = managerData ? `${managerData.firstName} ${managerData.lastName}` : managerId;
+      // Hämta alla sales managers från "users" med role "sales-manager"
+      const salesManagersQuery = query(
+        collection(db, 'users'),
+        where('role', '==', 'sales-manager')
+      );
+      const salesManagersSnapshot = await getDocs(salesManagersQuery);
+      const salesManagers = salesManagersSnapshot.docs.map(doc => {
+        const data = doc.data();
         return {
-          managerId,
-          managerName,
-          reportedYesterday: reportedReportsMap.has(managerId),
-          reportDate: reportedReportsMap.get(managerId) || null
+          managerId: doc.id,
+          managerName: `${data.firstName} ${data.lastName}`,
+          reportedYesterday: reportedReportsMap.has(doc.id),
+          reportDate: reportedReportsMap.get(doc.id) || null
         };
       });
-      const managerStatus = await Promise.all(managerStatusPromises);
-      setFinalReportsStatus(managerStatus);
+      setFinalReportsStatus(salesManagers);
     } catch (error) {
       console.error("Error fetching final report status:", error);
     }
   };
+  // --- SLUT Uppdaterad fetchFinalReportsStatus ---
 
   // --- Popup: Öppna modal med säljarinformation från finalrapport ---
   const openModal = async (managerId, managerName) => {
@@ -360,7 +352,6 @@ const Dashboard = () => {
       const reportSnapshot = await getDocs(reportQuery);
       if (!reportSnapshot.empty) {
         const reportData = reportSnapshot.docs[0].data();
-        // Omvandla salesData (map) till en array med säljarobjekt
         const sellersArray = reportData.salesData ? Object.values(reportData.salesData) : [];
         setModalData({ sellers: sellersArray, totalSales: reportData.totalSales });
       } else {
