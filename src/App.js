@@ -28,6 +28,10 @@ import FactorDashboard from './components/FactorDashboard';
 import Hellofresh from './components/Hellofresh';
 import ForgotPassword from './components/ForgotPassword';
 import { AuthProvider } from './auth';
+import ManageMaterialAdmin from './components/ManageMaterialAdmin';
+
+// Lägg till import för din nya komponent
+import ManageMaterial from './components/ManageMaterial';
 
 function App() {
   return (
@@ -48,12 +52,23 @@ function App() {
                   <Dashboard />
                 </ProtectedRoute>
               } 
+              
             />
             <Route
               path="/uppdragsgivare/factor-dashboard"
               element={
                 <ProtectedRoute role="uppdragsgivare">
                   <FactorDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Ny route för ManageMaterialAdmin för admin */}
+            <Route
+              path="/admin/manage-material"
+              element={
+                <ProtectedRoute role="admin">
+                  <ManageMaterialAdmin />
                 </ProtectedRoute>
               }
             />
@@ -233,7 +248,20 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+
+            {/* 
+              Ny route för ManageMaterial - endast åtkomlig för sales-manager 
+            */}
+            <Route
+              path="/sales-manager/material"
+              element={
+                <ProtectedRoute role="sales-manager">
+                  <ManageMaterial />
+                </ProtectedRoute>
+              }
+            />
           </Route>
+
           <Route path="/unauthorized" element={<div>Unauthorized Access</div>} />
           <Route path="*" element={<div>404 - Page not found</div>} />
         </Routes>

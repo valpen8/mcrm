@@ -13,22 +13,33 @@
 .filter-container,
 .filter-table {
   width: 100%;
-  border-spacing: 15px;
+  border-spacing: 20px 10px; /* Lägg till bättre kontroll på spacing */
   margin-bottom: 20px;
+  margin-left: auto;
+  margin-right: auto; /* Centrera tabellen */
 }
 
 .filter-table label {
+  display: block;
+  margin-bottom: 8px; /* Flytta rubriker närmare input */
   font-weight: bold;
-  margin-left: 60px;
+  font-size: 14px;
+  margin-right: 1%;
 }
 
+.filter-table td {
+  padding: 6px 12px;
+  vertical-align: top; /* så label och input hänger ihop bättre vertikalt */
+}
+
+/* Inputs/dropdowns – kompaktare look */
 .filter-table select,
 .filter-table input {
   width: 100%;
-  padding: 10px;
+  padding: 6px 10px;
+  font-size: 13px;
   border: 1px solid #ddd;
   border-radius: 5px;
-  font-size: 14px;
 }
 
 /* Knappstilar */
@@ -87,6 +98,19 @@
   border: 1px solid #ddd;
   font-size: 14px;
 }
+
+/* Gör dropdowns och date inputs mindre i höjd och bredd */
+.filter-table select,
+.filter-table input[type="date"] {
+  padding: 6px 10px;
+  font-size: 13px;
+  width: 160px;
+  min-width: unset; /* ifall tidigare CSS tvingar större bredd */
+  border-radius: 5px;
+}
+
+
+
 
 /* ========== Knappcontainer ========== */
 .buttons-container {
@@ -371,3 +395,26 @@
   text-align: center;
   margin: 0;
 }
+
+.filter-table {
+  /* Minska avståndet mellan cellerna */
+  border-spacing: 5px 5px; /* var 20px 10px */
+}
+
+.filter-table td {
+  /* Lite mindre padding i varje cell */
+  padding: 4px 8px; /* var 6px 12px */
+}
+
+.filter-table label {
+  /* Minska avståndet under labeln */
+  margin-bottom: 2px; /* var 8px */
+  margin-right: 0;    /* var 1% */
+}
+
+.filter-table label {
+  display: block;      /* Behåll block, så label ligger över input */
+  margin-bottom: 2px;  /* Minska från t.ex. 8px till 2px */
+  margin-left: 60px;     /* Om du vill ta bort sidomarginalen helt */
+}
+

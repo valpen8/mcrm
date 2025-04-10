@@ -21,6 +21,10 @@ const Statistics = () => {
   const [finalReports, setFinalReports] = useState([]);
   const [qualityReportsData, setQualityReportsData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
+  // Ny state för att lagra ALL finalReport-data (utan paginering)
+  const [allFinalReportData, setAllFinalReportData] = useState([]);
+  // State för att lagra användardata (alla users)
+  const [users, setUsers] = useState([]);
 
   // Extra state för totalsumma per organisation
   const [orgTotals, setOrgTotals] = useState({});
@@ -126,6 +130,7 @@ const Statistics = () => {
   const fetchAllDataForTotals = async () => {
     try {
       if (dataSource === 'salesSpecification') {
+        // ... existerande kod för salesSpecification
         const usersSnapshot = await getDocs(collection(db, 'users'));
         const usersDataArray = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         const usersMap = {};
@@ -191,6 +196,7 @@ const Statistics = () => {
         });
         setOrgTotals(totals);
       } else if (dataSource === 'finalReport') {
+        // För finalReport hämtar vi ALL data (utan paginering) och sparar den i allFinalReportData
         let totalsQuery;
         if (startDate && endDate) {
           totalsQuery = selectedManager
@@ -224,9 +230,12 @@ const Statistics = () => {
         snapshot.forEach(doc => {
           const data = doc.data();
           const reportId = doc.id;
-          Object.keys(data.salesData || {}).forEach(salesId => {
+          Object.keys(data.salesData || {}).forEach(key => {
+            const salesItem = data.salesData[key];
             allData.push({
-              ...data.salesData[salesId],
+              ...salesItem,
+              salesId: salesItem.salesId || key,
+              sellerUid: key, // Spara även sellerUid
               date: data.date,
               reportId,
               managerUid: data.managerUid,
@@ -236,6 +245,9 @@ const Statistics = () => {
             });
           });
         });
+        // Spara all finalReport-data (utan paginering)
+        setAllFinalReportData(allData);
+        // Fortsätt med filtrering om nödvändigt för övriga syften
         let filtered = [...allData];
         if (selectedSalesperson) {
           filtered = filtered.filter(
@@ -257,6 +269,7 @@ const Statistics = () => {
         });
         setOrgTotals(totals);
       } else if (dataSource === 'kvalité') {
+        // ... existerande kod för kvalité
         let totalsQuery;
         if (startDate && endDate) {
           totalsQuery = selectedManager
@@ -376,11 +389,14 @@ const Statistics = () => {
     }
   };
 
+  // Vid nollställning rensas alla filter inklusive datumfält
   const handleResetFilters = () => {
     setSelectedPeriod('');
     setSelectedSalesperson('');
     setSelectedManager('');
     setSelectedStatus('');
+    setStartDate('');
+    setEndDate('');
     let resetData;
     if (dataSource === 'salesSpecification') {
       resetData = salesData;
@@ -407,7 +423,6 @@ const Statistics = () => {
   }, [filteredData]);
 
   // NY FUNKTION: Hämta attendance-statistik från finalReports utan paginering.
-  // Hämtar ALL finalReport-dokument baserat på datum och vald salesmanager och räknar antalet poster med status "Närvarande", "Sjuk/Sjuka" och "Ledig/Lediga".
   const fetchAttendanceStats = async () => {
     try {
       if (dataSource === 'finalReport' && startDate && endDate) {
@@ -557,15 +572,20 @@ const Statistics = () => {
           const finalReportsArray = finalReportsSnapshot.docs.flatMap(doc => {
             const data = doc.data();
             const reportId = doc.id;
-            return Object.keys(data.salesData || {}).map(salesId => ({
-              ...data.salesData[salesId],
-              date: data.date,
-              reportId,
-              managerUid: data.managerUid,
-              location: data.location || 'N/A',
-              organisation: data.organisation || 'N/A',
-              type: 'Final Report'
-            }));
+            return Object.keys(data.salesData || {}).map(key => {
+              const salesItem = data.salesData[key];
+              return {
+                ...salesItem,
+                salesId: salesItem.salesId || key,
+                sellerUid: key, // Lagra även sellerUid för senare uppslag
+                date: data.date,
+                reportId,
+                managerUid: data.managerUid,
+                location: data.location || 'N/A',
+                organisation: data.organisation || 'N/A',
+                type: 'Final Report'
+              };
+            });
           });
           setLastFinalReportDoc(finalReportsSnapshot.docs[finalReportsSnapshot.docs.length - 1]);
           setFinalReports(finalReportsArray);
@@ -575,6 +595,7 @@ const Statistics = () => {
           const usersSnapshot = await getDocs(collection(db, 'users'));
           const usersDataArray = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           setManagers(usersDataArray.filter(user => user.role === 'sales-manager'));
+          setUsers(usersDataArray);
           setSalespersons([...new Set(finalReportsArray.map(item => item.salesperson || item.name))]);
           const statusSet = new Set(finalReportsArray.map(item => item.status));
           setStatusOptions([...statusSet]);
@@ -732,15 +753,20 @@ const Statistics = () => {
         const nextData = nextSnapshot.docs.flatMap(doc => {
           const data = doc.data();
           const reportId = doc.id;
-          return Object.keys(data.salesData || {}).map(salesId => ({
-            ...data.salesData[salesId],
-            date: data.date,
-            reportId,
-            managerUid: data.managerUid,
-            location: data.location || 'N/A',
-            organisation: data.organisation || 'N/A',
-            type: 'Final Report'
-          }));
+          return Object.keys(data.salesData || {}).map(key => {
+            const salesItem = data.salesData[key];
+            return {
+              ...salesItem,
+              salesId: salesItem.salesId || key,
+              sellerUid: key, // Lagra sellerUid
+              date: data.date,
+              reportId,
+              managerUid: data.managerUid,
+              location: data.location || 'N/A',
+              organisation: data.organisation || 'N/A',
+              type: 'Final Report'
+            };
+          });
         });
         setLastFinalReportDoc(nextSnapshot.docs[nextSnapshot.docs.length - 1]);
         setFinalReports(prev => [...prev, ...nextData]);
@@ -818,6 +844,52 @@ const Statistics = () => {
       setLoadingMore(false);
     }
   };
+
+  // NYTT: Skapa en lista med unika säljare tillsammans med deras försäljningschef (salesmanager)
+  // Här använder vi allFinalReportData (som innehåller ALL finalReport-data under den valda datumintervallen)
+  // och summerar den totala inrapporterade siffran för varje säljare.
+  // Vi hämtar även "startDatum" och "sistaArbetsdag" från user-collection via den sparade sellerUid:n.
+  const uniqueNameTeam =
+    dataSource === 'finalReport' && selectedStatus === ""
+      ? (() => {
+          const sellerMap = new Map(users.map(u => [u.id, u]));
+          const managerMap = new Map(
+            managers.map(m => [m.id, `${m.firstName} ${m.lastName}`.trim()])
+          );
+          const dataForAggregation = selectedSalesperson ? filteredData : allFinalReportData;
+          const group = dataForAggregation.reduce((acc, item) => {
+            const name = (item.name || item.salesperson || '').trim();
+            if (!name) return acc;
+            const totalValue = parseFloat(item.totalApproved || item.sales || 0);
+            const salesManager = managerMap.get(item.managerUid) || 'N/A';
+            const sellerDetails = sellerMap.get(item.sellerUid) || {};
+            const startDatum = sellerDetails.startDatum || 'N/A';
+            const sistaArbetsdag = sellerDetails.sistaArbetsdag || 'N/A';
+            if (!acc.has(name)) {
+              acc.set(name, { 
+                name, 
+                salesManager, 
+                totalSales: totalValue,
+                salesId: item.salesId || 'N/A',
+                startDatum,
+                sistaArbetsdag
+              });
+            } else {
+              acc.get(name).totalSales += totalValue;
+            }
+            return acc;
+          }, new Map());
+          return Array.from(group.values());
+        })()
+      : [];
+
+  // Ny variabel för Topp 10 baserat på totalSales (fallande)
+  const top10 =
+    dataSource === 'finalReport' && selectedStatus === ""
+      ? [...uniqueNameTeam]
+          .sort((a, b) => b.totalSales - a.totalSales)
+          .slice(0, 10)
+      : [];
 
   return (
     <div className="statistics-container">
@@ -898,7 +970,11 @@ const Statistics = () => {
               <select
                 id="salesperson-select"
                 value={selectedSalesperson}
-                onChange={(e) => setSelectedSalesperson(e.target.value)}
+                onChange={(e) => {
+                  setSelectedSalesperson(e.target.value);
+                  // Vid val av säljare filtrera direkt
+                  handleFilterChange();
+                }}
               >
                 <option value="">Alla</option>
                 {salespersons.map((salesperson, index) => (
@@ -979,81 +1055,135 @@ const Statistics = () => {
             <li>Lediga: {vacantCount}</li>
           </ul>
         </div>
+
+        {/* Ny box för Topp 10 */}
+        <div className="statistics-card top10-card">
+          <h3>Topp 10 under vald period</h3>
+          {top10.length > 0 ? (
+            <ul>
+              {top10.map((entry, index) => (
+                <li key={index}>
+                  {entry.name} - {entry.totalSales}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>Ingen data tillgänglig</p>
+          )}
+        </div>
       </div>
 
-      {/* Resultattabell */}
-      <div className="table-container">
-        <table className="statistics-table">
-          <thead>
-            <tr>
-              {dataSource === 'kvalité' ? (
-                <>
-                  <th onClick={() => handleSort('date')}>
-                    Datum {sortConfig.key === 'date' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
-                  </th>
-                  <th>Organisation</th>
-                  <th>Teammedlem</th>
+      {/* RESULTAT */}
+      {/* När vi är på finalReport med status "Alla" (tom sträng) renderas en tabell med unika säljare,
+          där vi visar säljarnamn, sälj‑ID, start datum, sista arbetsdag, försäljningschef (utifrån managerUid)
+          samt den summerade totalen från samtliga rapporter.
+          Om en säljare är vald i dropdownen visas endast den användaren. */}
+      {dataSource === 'finalReport' && selectedStatus === "" ? (
+        <div className="unique-names-table" style={{ marginTop: '20px' }}>
+          <h2>Unika Säljare</h2>
+          {uniqueNameTeam.length > 0 ? (
+            <table className="statistics-table">
+              <thead>
+                <tr>
+                  <th>Namn</th>
                   <th>Sales ID</th>
-                  <th>Reg Sälj</th>
-                  <th>Ogiltigt Belopp</th>
-                  <th>Utanför målgrupp</th>
-                  <th>Pending</th>
-                  <th>Total</th>
-                </>
-              ) : (
-                <>
-                  <th>Säljare</th>
-                  <th>{dataSource === 'finalReport' ? 'Status' : 'Period'}</th>
-                  <th onClick={() => handleSort('date')}>
-                    Datum {sortConfig.key === 'date' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
-                  </th>
-                  {dataSource === 'finalReport' && <th>Organisation</th>}
-                  <th>Försäljning</th>
-                  <th>Typ</th>
-                </>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredData.length === 0 ? (
-              <tr>
-                <td colSpan={dataSource === 'kvalité' ? 9 : dataSource === 'finalReport' ? 6 : 5}>
-                  Ingen data tillgänglig
-                </td>
-              </tr>
-            ) : (
-              filteredData.map((item, index) => (
-                <tr key={index}>
-                  {dataSource === 'kvalité' ? (
-                    <>
-                      <td data-label="Datum">{item.date || 'N/A'}</td>
-                      <td data-label="Organisation">{item.organisation || 'N/A'}</td>
-                      <td data-label="Teammedlem">{item.teamMember || 'N/A'}</td>
-                      <td data-label="Sales ID">{item.salesId || 'N/A'}</td>
-                      <td data-label="Reg Sälj">{item.regSales || 0}</td>
-                      <td data-label="Ogiltigt Belopp">{item.invalidAmount || 0}</td>
-                      <td data-label="Utanför målgrupp">{item.outOfTarget || 0}</td>
-                      <td data-label="Pending">{item.pending || 0}</td>
-                      <td data-label="Total">{item.total || 0}</td>
-                    </>
-                  ) : (
-                    <>
-                      <td data-label="Säljare">{item.name || item.salesperson || 'N/A'}</td>
-                      <td data-label={dataSource === 'finalReport' ? "Status" : "Period"}>
-                        {dataSource === 'finalReport' ? item.status || 'N/A' : item.period || 'N/A'}
-                      </td>
-                      <td data-label="Datum">{item.date || 'N/A'}</td>
-                      {dataSource === 'finalReport' && <td data-label="Organisation">{item.organisation || 'N/A'}</td>}
-                      <td data-label="Försäljning">{item.totalApproved || item.sales || 'N/A'}</td>
-                      <td data-label="Typ">{item.type || (dataSource === 'salesSpecification' ? 'Sales Specification' : '')}</td>
-                    </>
-                  )}
+                  <th>Start Datum</th>
+                  <th>Sista Arbetsdag</th>
+                  <th>Försäljningschef</th>
+                  <th>Total Sälj</th>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody>
+                {uniqueNameTeam.map((entry, index) => (
+                  <tr key={index}>
+                    <td data-label="Namn">{entry.name}</td>
+                    <td data-label="Sales ID">{entry.salesId}</td>
+                    <td data-label="Start Datum">{entry.startDatum}</td>
+                    <td data-label="Sista Arbetsdag">{entry.sistaArbetsdag}</td>
+                    <td data-label="Försäljningschef">{entry.salesManager}</td>
+                    <td data-label="Total Sälj">{entry.totalSales}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p>Ingen data tillgänglig</p>
+          )}
+        </div>
+      ) : (
+        <div className="table-container">
+          <table className="statistics-table">
+            <thead>
+              <tr>
+                {dataSource === 'kvalité' ? (
+                  <>
+                    <th onClick={() => handleSort('date')}>
+                      Datum {sortConfig.key === 'date' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                    </th>
+                    <th>Organisation</th>
+                    <th>Teammedlem</th>
+                    <th>Sales ID</th>
+                    <th>Reg Sälj</th>
+                    <th>Ogiltigt Belopp</th>
+                    <th>Utanför målgrupp</th>
+                    <th>Pending</th>
+                    <th>Total</th>
+                  </>
+                ) : (
+                  <>
+                    <th>Säljare</th>
+                    <th>{dataSource === 'finalReport' ? 'Status' : 'Period'}</th>
+                    <th onClick={() => handleSort('date')}>
+                      Datum {sortConfig.key === 'date' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                    </th>
+                    {dataSource === 'finalReport' && <th>Organisation</th>}
+                    <th>Försäljning</th>
+                    <th>Typ</th>
+                  </>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan={dataSource === 'kvalité' ? 9 : dataSource === 'finalReport' ? 6 : 5}>
+                    Ingen data tillgänglig
+                  </td>
+                </tr>
+              ) : (
+                filteredData.map((item, index) => (
+                  <tr key={index}>
+                    {dataSource === 'kvalité' ? (
+                      <>
+                        <td data-label="Datum">{item.date || 'N/A'}</td>
+                        <td data-label="Organisation">{item.organisation || 'N/A'}</td>
+                        <td data-label="Teammedlem">{item.teamMember || 'N/A'}</td>
+                        <td data-label="Sales ID">{item.salesId || 'N/A'}</td>
+                        <td data-label="Reg Sälj">{item.regSales || 0}</td>
+                        <td data-label="Ogiltigt Belopp">{item.invalidAmount || 0}</td>
+                        <td data-label="Utanför målgrupp">{item.outOfTarget || 0}</td>
+                        <td data-label="Pending">{item.pending || 0}</td>
+                        <td data-label="Total">{item.total || 0}</td>
+                      </>
+                    ) : (
+                      <>
+                        <td data-label="Säljare">{item.name || item.salesperson || 'N/A'}</td>
+                        <td data-label={dataSource === 'finalReport' ? "Status" : "Period"}>
+                          {dataSource === 'finalReport' ? item.status || 'N/A' : item.period || 'N/A'}
+                        </td>
+                        <td data-label="Datum">{item.date || 'N/A'}</td>
+                        {dataSource === 'finalReport' && <td data-label="Organisation">{item.organisation || 'N/A'}</td>}
+                        <td data-label="Försäljning">{item.totalApproved || item.sales || 'N/A'}</td>
+                        <td data-label="Typ">{item.type || (dataSource === 'salesSpecification' ? 'Sales Specification' : '')}</td>
+                      </>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div style={{ textAlign: 'center', marginTop: '20px' }}>
         {((dataSource === 'salesSpecification' && lastSalesSpecDoc) ||

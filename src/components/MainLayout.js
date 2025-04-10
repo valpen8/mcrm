@@ -64,7 +64,9 @@ const MainLayout = () => {
       { path: '/admin/statistics', label: 'Statistik' },
       { path: '/manage-organizations', label: 'Hantera Organisationer' },
       { path: '/uppdragsgivare/hellofresh', label: 'HelloFresh' },
-      { path: '/uppdragsgivare/factor-dashboard', label: 'Factor Dashboard' } 
+      { path: '/uppdragsgivare/factor-dashboard', label: 'Factor Dashboard' },
+      
+      { path: '/admin/manage-material', label: 'Hantera Material' } 
     ],
     'sales-manager': [
       { path: '/sales-manager/dashboard', label: 'Dashboard' },
@@ -73,6 +75,8 @@ const MainLayout = () => {
       { path: '/sales-manager/manage-users', label: 'Hantera teammedlemmar' },
       { path: '/sales-manager/final-report', label: 'Slutrapport' },
       { path: '/sales-manager/statistics', label: 'Statistik' },
+      // I MainLayout.js, i menuItems för 'sales-manager':
+      { path: '/sales-manager/material', label: 'Hantera Material' }
     ],
     quality: [
       { path: '/quality/dashboard', label: 'Kvalité Dashboard' },

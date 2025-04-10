@@ -103,8 +103,8 @@
 .dashboard-content .top-sales-managers, 
 .dashboard-content .org-sales-stats,
 .dashboard-content .yesterday-stats,
-/* LÄGG TILL NEDANSTÅENDE RAD */
-.dashboard-content .final-reports {
+.dashboard-content .final-reports,
+.dashboard-content .active-sellers {
   background: linear-gradient(145deg, #ffffff, #e6e6e6);
   border-radius: 12px;
   padding: 20px;
@@ -118,8 +118,8 @@
 .dashboard-content .org-sales-stats:hover,
 .dashboard-content .yesterday-stats:hover,
 .yesterday-org-stats:hover,
-/* LÄGG TILL NEDANSTÅENDE RAD */
-.dashboard-content .final-reports:hover {
+.dashboard-content .final-reports:hover,
+.dashboard-content .active-sellers:hover {
   transform: scale(1.02);
   box-shadow: 6px 6px 12px #d1d9e6, -6px -6px 12px #ffffff;
 }
@@ -230,3 +230,61 @@
   width: 90%;
   box-shadow: 4px 4px 8px #d1d9e6, -4px -4px 8px #ffffff;
 }
+
+/* Ny regel för att centrera knapparna i active-sellers */
+.active-sellers .date-picker-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+}
+
+/* Containern som omsluter boxarna */
+.statistics-cards {
+  display: flex;
+  flex-wrap: nowrap;         /* Förhindra radbrytning */
+  gap: 20px;                 /* Mellanrum mellan boxarna */
+  overflow-x: auto;          /* Skapar horisontell scrollbar om det inte får plats */
+  margin-bottom: 20px;
+}
+
+/* Varje box har fast bredd (justera efter smak) */
+.statistics-card {
+  flex: 0 0 250px;           /* Lås bredden till 250px */
+  box-sizing: border-box;    /* Gör att padding räknas in i totalbredden */
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 20px;
+  /* Ta bort fast höjd om du hade en sådan innan, så att höjden anpassas automatiskt */
+  /* height: 150px;  <-- ta bort om du inte vill låsa höjden */
+}
+
+/* Titel i boxen */
+.statistics-card h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  text-align: center;
+  font-size: 18px;
+  color: #17a2b8;
+}
+
+.statistics-cards {
+  display: flex;
+  flex-wrap: nowrap;       /* Förhindra radbrytning om du vill ha alla på samma rad */
+  gap: 20px;               /* Mellanrum mellan boxarna */
+  margin-bottom: 20px;
+  justify-content: center; /* Centrera boxarna horisontellt */
+  overflow-x: auto;        /* Skroll om boxarna inte får plats på mindre skärmar */
+}
+
+.statistics-card {
+  flex: 0 0 250px;         /* Lås varje box till 250px bredd, justera efter behov */
+  box-sizing: border-box;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 20px;
+}
+

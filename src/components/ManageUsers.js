@@ -181,68 +181,75 @@ const ManageUsers = () => {
     <div className="manage-users-container">
       <h1>Hantera Användare</h1>
 
-      {/* === FILTRERINGEN === */}
-      <div className="filter-container">
-
-        {/* 1) Dropdowns till vänster */}
-        <div className="dropdowns-container">
-          <label htmlFor="sales-manager-select">Välj Försäljningschef:</label>
-          <select
-            id="sales-manager-select"
-            value={selectedSalesManager}
-            onChange={(e) => setSelectedSalesManager(e.target.value)}
-          >
-            <option value="">Alla</option>
-            {salesManagers.map(manager => (
-              <option key={manager.id} value={manager.id}>
-                {manager.firstName} {manager.lastName}
-              </option>
-            ))}
-          </select>
-
-          <div className="status-filter-container">
-            <label htmlFor="status-filter">Status:</label>
-            <select
-              id="status-filter"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">Alla</option>
-              <option value="active">Aktiva</option>
-              <option value="inactive">Avslutade</option>
-            </select>
-          </div>
-        </div>
-
-        {/* 2) Datumfält, kan ligga i mitten / eller var du vill */}
-        <div className="date-filter-container">
-          <label>Från:</label>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-          <label>Till:</label>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-        </div>
-
-        {/* 3) Knapparna */}
-        <div className="buttons-container">
-          <button className="filter-button" onClick={handleFilter}>
-            Filtrera
-          </button>
-          <button className="filter-button" onClick={handleResetFilters}>
-            Nollställ
-          </button>
-          <button className="export-button" onClick={exportToExcel}>
-            Exportera
-          </button>
-        </div>
+     {/* === FILTRERINGEN === */}
+<div className="filter-container">
+  <div className="filter-section-wrapper">
+    {/* 1. Dropdowns (vänster) */}
+    <div className="dropdowns-container">
+      <div className="filter-group">
+        <label htmlFor="sales-manager-select">Välj Försäljningschef:</label>
+        <select
+          id="sales-manager-select"
+          value={selectedSalesManager}
+          onChange={(e) => setSelectedSalesManager(e.target.value)}
+        >
+          <option value="">Alla</option>
+          {salesManagers.map(manager => (
+            <option key={manager.id} value={manager.id}>
+              {manager.firstName} {manager.lastName}
+            </option>
+          ))}
+        </select>
       </div>
+
+      <div className="filter-group">
+        <label htmlFor="status-filter">Status:</label>
+        <select
+          id="status-filter"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="all">Alla</option>
+          <option value="active">Aktiva</option>
+          <option value="inactive">Avslutade</option>
+        </select>
+      </div>
+    </div>
+
+    {/* 2. Datumfält (höger) */}
+    <div className="date-filter-container">
+      <div className="filter-group">
+        <label>Från:</label>
+        <input
+          type="date"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+        />
+      </div>
+      <div className="filter-group">
+        <label>Till:</label>
+        <input
+          type="date"
+          value={endDate}
+          onChange={(e) => setEndDate(e.target.value)}
+        />
+      </div>
+    </div>
+  </div>
+
+  {/* 3. Knappar under filtret */}
+  <div className="buttons-container">
+    <button className="filter-button" onClick={handleFilter}>
+      Filtrera
+    </button>
+    <button className="filter-button" onClick={handleResetFilters}>
+      Nollställ
+    </button>
+    <button className="export-button" onClick={exportToExcel}>
+      Exportera
+    </button>
+  </div>
+</div>
 
       {/* === TABELLEN === */}
       <div className="user-table-container">

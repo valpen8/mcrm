@@ -4,6 +4,7 @@ import { db } from '../firebaseConfig';
 import './styles/Dashboard.css';
 
 const Dashboard = () => {
+  // Befintliga states
   const [totalSales, setTotalSales] = useState(0);
   const [averageSales, setAverageSales] = useState(0);
   const [topUsers, setTopUsers] = useState([]);
@@ -21,10 +22,21 @@ const Dashboard = () => {
 
   // --- Popup-state ---
   const [modalOpen, setModalOpen] = useState(false);
-  // Objekt med två fält: sellers (array) och totalSales (från rapporten)
   const [modalData, setModalData] = useState({ sellers: [], totalSales: 0 });
   const [modalManagerName, setModalManagerName] = useState('');
   // --- SLUT Popup-state ---
+
+  // --- Ny dropdown för att välja datum (för slutrapporter) ---
+  const [availableReportDates, setAvailableReportDates] = useState([]);
+  const [selectedReportDate, setSelectedReportDate] = useState("");
+  // --- SLUT Ny dropdown ---
+
+  // --- Ny state för aktiva säljare under period ---
+  // Vi sparar här både säljarnamn och vilken sales manager de tillhör.
+  const [activeSellerStartDate, setActiveSellerStartDate] = useState('');
+  const [activeSellerEndDate, setActiveSellerEndDate] = useState('');
+  const [activeSellers, setActiveSellers] = useState([]);
+  // --- SLUT Ny state ---
 
   // Returnerar start och slut för nuvarande period (18:e → 17:e)
   const getCurrentPeriod = () => {
@@ -79,9 +91,39 @@ const Dashboard = () => {
     return total;
   };
 
+  // Hämtar unika datum från finalRapporter och sätter availableReportDates
+  const fetchAvailableReportDates = async () => {
+    try {
+      const reportsSnapshot = await getDocs(collection(db, 'finalReports'));
+      const dates = reportsSnapshot.docs.map(doc => doc.data().date);
+      const uniqueDates = [...new Set(dates)];
+      // Sortera så att senaste datumet kommer först (förväntat format "YYYY-MM-DD")
+      uniqueDates.sort((a, b) => b.localeCompare(a));
+      setAvailableReportDates(uniqueDates);
+      if (!selectedReportDate && uniqueDates.length > 0) {
+        setSelectedReportDate(uniqueDates[0]);
+      }
+    } catch (error) {
+      console.error("Error fetching available report dates:", error);
+    }
+  };
+
+  // Kör fetchAvailableReportDates en gång vid första renderingen
+  useEffect(() => {
+    fetchAvailableReportDates();
+  }, []);
+
+  // Hämta all övrig data (utom slutrapporter)
   useEffect(() => {
     fetchData();
   }, []);
+
+  // När endast datumet ändras, uppdateras endast listan med slutrapporter
+  useEffect(() => {
+    if (selectedReportDate) {
+      fetchFinalReportsStatus();
+    }
+  }, [selectedReportDate]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -91,8 +133,8 @@ const Dashboard = () => {
       fetchTopTeams(),
       fetchOrgStats(),
       fetchYesterdayStats(),
-      fetchYesterdayOrgStats(),
-      fetchFinalReportsStatus() // Hämtar slutrapporter-status med datum
+      fetchYesterdayOrgStats()
+      // Notera: fetchFinalReportsStatus körs separat vid datumändring
     ]);
     setLoading(false);
   };
@@ -296,25 +338,24 @@ const Dashboard = () => {
     }
   };
 
-  // --- Uppdaterad fetchFinalReportsStatus ---
-  // Hämtar ALLA sales managers från "users" där role är "sales-manager" oavsett om de lämnat in en rapport igår.
-  // Markerar med grönt om de har rapporterat igår, annars rött kryss.
+  // === Uppdaterad fetchFinalReportsStatus ===
+  // Hämtar ALLA sales managers från "users" med role "sales-manager", oavsett om de lämnat in en rapport för det valda datumet.
+  // Om en manager lämnar in flera rapporter sparas alla i en array i egenskapen "reports".
   const fetchFinalReportsStatus = async () => {
-    const { start, end } = getYesterdayPeriod();
     try {
-      // Hämta alla rapporter från igår
-      const yesterdaySnapshot = await getDocs(collection(db, 'finalReports'));
-      const yesterdayData = yesterdaySnapshot.docs
+      // Hämta alla rapporter från finalReports med datum som matchar selectedReportDate
+      const reportsSnapshot = await getDocs(collection(db, 'finalReports'));
+      const reportsData = reportsSnapshot.docs
         .map(doc => ({ ...doc.data(), id: doc.id }))
-        .filter(report => {
-          const reportDate = new Date(report.date);
-          return reportDate >= start && reportDate <= end;
-        });
+        .filter(report => report.date === selectedReportDate);
       
-      // Skapa en karta med managerUid -> rapportdatum från igår
-      const reportedReportsMap = new Map();
-      yesterdayData.forEach(report => {
-        reportedReportsMap.set(report.managerUid, report.date);
+      // Gruppera rapporterna per managerUid – varje manager får en array med rapporter
+      const reportsByManager = {};
+      reportsData.forEach(report => {
+        if (!reportsByManager[report.managerUid]) {
+          reportsByManager[report.managerUid] = [];
+        }
+        reportsByManager[report.managerUid].push(report);
       });
       
       // Hämta alla sales managers från "users" med role "sales-manager"
@@ -328,8 +369,7 @@ const Dashboard = () => {
         return {
           managerId: doc.id,
           managerName: `${data.firstName} ${data.lastName}`,
-          reportedYesterday: reportedReportsMap.has(doc.id),
-          reportDate: reportedReportsMap.get(doc.id) || null
+          reports: reportsByManager[doc.id] || []
         };
       });
       setFinalReportsStatus(salesManagers);
@@ -337,33 +377,74 @@ const Dashboard = () => {
       console.error("Error fetching final report status:", error);
     }
   };
-  // --- SLUT Uppdaterad fetchFinalReportsStatus ---
+  // === SLUT Uppdaterad fetchFinalReportsStatus ===
 
-  // --- Popup: Öppna modal med säljarinformation från finalrapport ---
-  const openModal = async (managerId, managerName) => {
-    const { start, end } = getYesterdayPeriod();
+  // === Funktion för att hämta aktiva säljare under en vald period ===
+  // Här sparar vi inte bara säljarnamnet utan även vilken sales manager de tillhör.
+  const fetchActiveSellers = async () => {
     try {
+      if (!activeSellerStartDate || !activeSellerEndDate) {
+        console.error("Båda datum måste väljas");
+        return;
+      }
+      
+      // Konvertera datumsträngarna till Date-objekt
+      const start = new Date(activeSellerStartDate);
+      const end = new Date(activeSellerEndDate);
+      end.setHours(23, 59, 59, 999);
+      
+      // Hämta alla rapporter från finalReports
+      const reportsSnapshot = await getDocs(collection(db, 'finalReports'));
+      const reportsData = reportsSnapshot.docs
+        .map(doc => doc.data())
+        .filter(report => {
+          const reportDate = new Date(report.date);
+          return reportDate >= start && reportDate <= end;
+        });
+
+      // Använd en Map för att spara unika säljare tillsammans med tillhörande sales manager
+      const sellersMap = new Map();
+      reportsData.forEach(report => {
+        if (report.salesData) {
+          Object.values(report.salesData).forEach(seller => {
+            if (seller.name) {
+              if (!sellersMap.has(seller.name)) {
+                sellersMap.set(seller.name, {
+                  sellerName: seller.name,
+                  managerName: report.managerName,
+                  managerUid: report.managerUid
+                });
+              }
+            }
+          });
+        }
+      });
+      
+      setActiveSellers(Array.from(sellersMap.values()));
+    } catch (error) {
+      console.error("Error fetching active sellers:", error);
+    }
+  };
+
+  // === Popup: Öppna modal med säljarinformation från finalrapport(er) för en sales manager ===
+  const openModal = async (managerId, managerName) => {
+    try {
+      // Hämta alla rapporter från finalReports för den specifika managern och det valda datumet
       const reportQuery = query(
         collection(db, 'finalReports'),
         where('managerUid', '==', managerId),
-        where('date', '>=', start.toISOString()),
-        where('date', '<=', end.toISOString())
+        where('date', '==', selectedReportDate)
       );
       const reportSnapshot = await getDocs(reportQuery);
-      if (!reportSnapshot.empty) {
-        const reportData = reportSnapshot.docs[0].data();
-        const sellersArray = reportData.salesData ? Object.values(reportData.salesData) : [];
-        setModalData({ sellers: sellersArray, totalSales: reportData.totalSales });
-      } else {
-        setModalData({ sellers: [], totalSales: 0 });
-      }
+      const reports = reportSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setModalData(reports);
       setModalManagerName(managerName);
       setModalOpen(true);
     } catch (error) {
       console.error("Error fetching report details:", error);
     }
   };
-  // --- SLUT Popup ---
+  // === SLUT Popup ===
 
   const { start: currentStart, end: currentEnd } = getCurrentPeriod();
   const totalDaysInPeriod = Math.floor((currentEnd.getTime() - currentStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
@@ -410,29 +491,27 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* TOP USERS */}
+          {/* TOP 10 SÄLJARE */}
           <div className="top-users">
-            <h2>Top 10 Säljare</h2>
+            <h2>Top 10 säljare</h2>
             <ul>
               {topUsers.map((user, index) => (
                 <li key={index}>
-                  {index + 1}. {user.userName}: {user.totalSales} Avtal
+                  {index + 1}. {user.userName}: {user.totalSales} avtal
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* TOP TEAMS */}
+          {/* BÄSTA TEAM */}
           <div className="top-sales-managers">
-            <h2>Bästa Team</h2>
+            <h2>Bästa team</h2>
             <ul>
               {topTeams.map((team, index) => (
-                <li 
-                  key={index}
-                  onClick={() => team.totalSales > 0 && openModal(team.managerId, team.managerName)}
-                  style={{ cursor: team.totalSales > 0 ? 'pointer' : 'default' }}
-                >
-                  {index + 1}. {team.managerName}: {team.totalSales} Avtal
+                <li key={index}
+                    onClick={() => team.totalSales > 0 && openModal(team.managerId, team.managerName)}
+                    style={{ cursor: team.totalSales > 0 ? 'pointer' : 'default' }}>
+                  {index + 1}. {team.managerName}: {team.totalSales} avtal
                 </li>
               ))}
             </ul>
@@ -444,7 +523,7 @@ const Dashboard = () => {
             <ul>
               {orgStats.map((org, index) => (
                 <li key={index}>
-                  {index + 1}. {org.orgName}: {org.totalSales} Avtal 
+                  {index + 1}. {org.orgName}: {org.totalSales} avtal 
                   (Genomsnitt: {org.avgSales.toFixed(2)})
                 </li>
               ))}
@@ -457,7 +536,7 @@ const Dashboard = () => {
             <ul>
               {yesterdayStats.map((stat, index) => (
                 <li key={index}>
-                  {index + 1}. {stat.team}: {stat.totalSales} Avtal
+                  {index + 1}. {stat.team}: {stat.totalSales} avtal
                 </li>
               ))}
             </ul>
@@ -469,26 +548,38 @@ const Dashboard = () => {
             <ul>
               {yesterdayOrgStats.map((org, index) => (
                 <li key={index}>
-                  {index + 1}. {org.orgName}: {org.totalSales} Avtal
+                  {index + 1}. {org.orgName}: {org.totalSales} avtal
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* SLUTRAPPORTER */}
+          {/* Slutrapporter: Dropdown och lista */}
           <div className="final-reports">
+            <div className="report-date-dropdown" style={{ marginBottom: '10px', textAlign: 'center' }}>
+              <label htmlFor="reportDate">Välj datum: </label>
+              <select
+                id="reportDate"
+                value={selectedReportDate}
+                onChange={(e) => setSelectedReportDate(e.target.value)}
+              >
+                {availableReportDates.map((date, idx) => (
+                  <option key={idx} value={date}>
+                    {new Date(date).toLocaleDateString()}
+                  </option>
+                ))}
+              </select>
+            </div>
             <h2>Slutrapporter</h2>
             <ul>
               {finalReportsStatus.map((manager, index) => (
-                <li 
-                  key={index} 
-                  onClick={() => manager.reportedYesterday && openModal(manager.managerId, manager.managerName)}
-                  style={{ cursor: manager.reportedYesterday ? 'pointer' : 'default' }}
-                >
+                <li key={index}
+                    onClick={() => openModal(manager.managerId, manager.managerName)}
+                    style={{ cursor: 'pointer' }}>
                   {manager.managerName}{' '}
-                  {manager.reportedYesterday ? (
+                  {(manager.reports || []).length > 0 ? (
                     <span style={{ color: 'green' }}>
-                      ✔️ {new Date(manager.reportDate).toLocaleDateString()}
+                      ✔️ {new Date(manager.reports[0].date).toLocaleDateString()}
                     </span>
                   ) : (
                     <span style={{ color: 'red' }}>❌</span>
@@ -497,25 +588,70 @@ const Dashboard = () => {
               ))}
             </ul>
           </div>
+
+          {/* --- Nytt avsnitt för Aktiva säljare under period --- */}
+          <div className="active-sellers">
+            <h2>Aktiva säljare under period</h2>
+            <div className="date-picker-container">
+              <label htmlFor="activeSellerStartDate">Startdatum: </label>
+              <input
+                type="date"
+                id="activeSellerStartDate"
+                value={activeSellerStartDate}
+                onChange={(e) => setActiveSellerStartDate(e.target.value)}
+              />
+              <label htmlFor="activeSellerEndDate">Slutdatum: </label>
+              <input
+                type="date"
+                id="activeSellerEndDate"
+                value={activeSellerEndDate}
+                onChange={(e) => setActiveSellerEndDate(e.target.value)}
+              />
+              <button onClick={fetchActiveSellers}>Hämta aktiva säljare</button>
+              <button onClick={() => setActiveSellers([])}>Rensa</button>
+            </div>
+            <ul>
+              {activeSellers.length > 0 ? (
+                activeSellers.map((seller, idx) => (
+                  <li key={idx}>
+                    {seller.sellerName} - {seller.managerName}
+                  </li>
+                ))
+              ) : (
+                <li>Inga aktiva säljare hittades under vald period.</li>
+              )}
+            </ul>
+          </div>
+          {/* --- SLUT nytt avsnitt --- */}
         </div>
       )}
-
+      
       {/* Popup Modal */}
       {modalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
             <h2>{modalManagerName} - Säljarinformation</h2>
-            <p><strong>Total försäljning:</strong> {modalData.totalSales}</p>
-            {modalData.sellers.length > 0 ? (
-              <ul>
-                {modalData.sellers.map((seller, idx) => (
-                  <li key={idx}>
-                    {seller.name} – {seller.sales} avtal – Status: {seller.status}
-                  </li>
-                ))}
-              </ul>
+            {modalData.length > 0 ? (
+              modalData.map((report, idx) => (
+                <div key={idx} className="report-item">
+                  <p><strong>Datum:</strong> {new Date(report.date).toLocaleDateString()}</p>
+                  <p><strong>Organisation:</strong> {report.organisation}</p>
+                  <p><strong>Total försäljning:</strong> {report.totalSales}</p>
+                  {report.salesData ? (
+                    <ul>
+                      {Object.values(report.salesData).map((seller, sIdx) => (
+                        <li key={sIdx}>
+                          {seller.name} – {seller.sales} avtal – Status: {seller.status}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>Inga säljaruppgifter finns.</p>
+                  )}
+                </div>
+              ))
             ) : (
-              <p>Inga säljaruppgifter finns.</p>
+              <p>Inga rapporter hittades.</p>
             )}
             <button className="refresh-btn" onClick={() => setModalOpen(false)}>Stäng</button>
           </div>
